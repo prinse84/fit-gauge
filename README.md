@@ -27,7 +27,7 @@ omarchy bar set prinse84.fit-gauge <key> <value>
 | `ring3Metric` | Inner ring / third popup row | `Calories Burned` |
 | `stepGoal` | Daily step goal | `11000` |
 | `azmGoal` | Daily Active Zone Minutes goal | `24` |
-| `calorieGoal` | Daily active-calorie goal | `440` |
+| `calorieGoal` | Daily calorie goal (total burn - BMR + activity, not active-only) | `2300` |
 | `distanceGoalMeters` | Daily distance goal, in meters (shown as miles) | `8851` (5.5 mi) |
 | `floorsGoal` | Daily floors-climbed goal | `11` |
 | `refreshIntervalSec` | How often data is refetched | `300` |

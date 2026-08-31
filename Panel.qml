@@ -42,9 +42,14 @@ Panel {
   // exists) - see manifest.json's schema for where these come from and the
   // fit-gauge project notes for how the defaults were picked (Fitbit's own
   // defaults for steps/floors, the WHO/AHA weekly-minutes guideline for
-  // AZM, and fitness-press midpoints for calories/distance - each bumped
-  // 10% above baseline). distanceGoalMeters is stored in meters (the
-  // settings schema has no non-integer type) but shown as miles.
+  // AZM, a fitness-press midpoint for distance - steps/AZM/distance/floors
+  // each bumped 10% above baseline). calorieGoal is USDA's gender-neutral
+  // moderately-active-tier EER midpoint (2300) - NOT bumped 10%, and
+  // deliberately NOT an active-only figure: total-calories is total daily
+  // burn (BMR + activity), confirmed live (a user saw 1091 kcal by midday
+  // with only 3 AZM logged, impossible for an active-only reading that
+  // low). distanceGoalMeters is stored in meters (the settings schema has
+  // no non-integer type) but shown as miles.
   function goalSetting(key, fallback) {
     var value = root.settings ? root.settings[key] : undefined
     var n = parseInt(String(value === undefined || value === null ? fallback : value), 10)
@@ -56,7 +61,7 @@ Panel {
   }
   readonly property int stepGoal: goalSetting("stepGoal", 11000)
   readonly property int azmGoal: goalSetting("azmGoal", 24)
-  readonly property int calorieGoal: goalSetting("calorieGoal", 440)
+  readonly property int calorieGoal: goalSetting("calorieGoal", 2300)
   readonly property int distanceGoalMeters: goalSetting("distanceGoalMeters", 8851)
   readonly property int floorsGoal: goalSetting("floorsGoal", 11)
 

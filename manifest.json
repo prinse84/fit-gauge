@@ -17,7 +17,7 @@
       "refreshIntervalSec": 300,
       "stepGoal": 11000,
       "azmGoal": 24,
-      "calorieGoal": 440,
+      "calorieGoal": 2300,
       "distanceGoalMeters": 8851,
       "floorsGoal": 11,
       "ring1Metric": "Steps",
@@ -55,11 +55,12 @@
       {
         "key": "calorieGoal",
         "type": "integer",
-        "label": "Active calorie goal",
-        "min": 50,
-        "max": 2000,
-        "step": 10,
-        "defaultValue": 440
+        "label": "Daily calorie goal (total burn)",
+        "description": "Total daily calories burned - BMR/resting plus activity, matching the API's total-calories field. Default is USDA's gender-neutral moderately-active midpoint, not an active-only figure.",
+        "min": 1000,
+        "max": 6000,
+        "step": 50,
+        "defaultValue": 2300
       },
       {
         "key": "distanceGoalMeters",
