@@ -234,7 +234,7 @@ Panel {
 
         Column {
           width: parent.width
-          spacing: Style.space(10)
+          spacing: Style.space(8)
 
           Repeater {
             model: root.selectedMetrics
@@ -280,18 +280,25 @@ Panel {
     property color fillColor: root.foreground
 
     width: parent.width
-    spacing: Style.space(4)
+    spacing: Style.space(3)
 
     Row {
       id: headerRow
       width: parent.width
 
+      // Uppercase + letter-spacing + bold matches PanelHero's own
+      // sync-time treatment elsewhere in this popup (root.heroMeta) -
+      // reusing that idiom to distinguish the label from the value
+      // instead of a size difference, since both now share the same
+      // Style.font.caption token (the smallest one available).
       Text {
         textFormat: Text.PlainText
-        text: metricRoot.label
+        text: metricRoot.label.toUpperCase()
         color: root.foreground
         font.family: root.fontFamily
-        font.pixelSize: Style.font.body
+        font.pixelSize: Style.font.caption
+        font.bold: true
+        font.letterSpacing: 1.2
         width: headerRow.width - valueText.implicitWidth - Style.space(8)
         elide: Text.ElideRight
       }
@@ -304,13 +311,13 @@ Panel {
         text: metricRoot.value
         color: root.dim
         font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Style.font.caption
       }
     }
 
     FillBar {
       width: parent.width
-      implicitHeight: Style.space(6)
+      implicitHeight: Style.space(4)
       frac: metricRoot.frac
       fillColor: metricRoot.fillColor
       trackColor: root.trackColor
