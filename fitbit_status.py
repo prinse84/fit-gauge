@@ -208,8 +208,14 @@ def safe_metric(warnings: list, label: str, fn, *args):
 def build_status() -> dict:
     creds = get_credentials()
     warnings: list[str] = []
-    start_of_day = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    start_time = start_of_day.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Local midnight, not UTC midnight - datetime.now(timezone.utc) would put
+    # "today" on a UTC day boundary instead of the user's own, e.g. a CDT
+    # (UTC-5) user's steps/AZM/distance totals would span ~7PM-to-7PM local
+    # time instead of midnight-to-midnight. astimezone() with no argument
+    # picks up the system's local timezone, correct for a script that only
+    # ever runs on the user's own machine.
+    local_midnight = datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0)
+    start_time = local_midnight.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     steps_points = safe_metric(warnings, "steps", fetch_data_points, creds, "steps", start_time, "steps") or []
     steps_total = sum(int(p.get("count", 0)) for p in steps_points) if steps_points else None
