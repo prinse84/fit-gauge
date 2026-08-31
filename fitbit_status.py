@@ -79,6 +79,41 @@ def fetch_data_points(creds: Credentials, data_type: str, start_time: str, json_
         params = {**params, "page_token": next_token}
 
 
+def fetch_latest_data_point(creds: Credentials, data_type: str, json_field: str):
+    """GETs the single most recent data point for `data_type`, unfiltered.
+
+    daily-resting-heart-rate and sleep both reject the interval.start_time
+    filter fetch_data_points uses (400 INVALID_DATA_POINT_FILTER_DATA_TYPE_MEMBER
+    - confirmed against the live API, not documented anywhere), but return
+    results most-recent-first when queried with no filter at all.
+
+    A page can come back with zero dataPoints but still carry a
+    nextPageToken (confirmed live: page_size=1 on sleep returned only a
+    token, no data) - pagination is over raw underlying records, not
+    merged output points. So this follows nextPageToken across a few pages
+    rather than trusting the first one to have data.
+    """
+    url = f"{API_BASE}/users/me/dataTypes/{data_type}/dataPoints"
+    params = {"page_size": 10}
+    for _ in range(5):
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {creds.token}", "Accept": "application/json"},
+            params=params,
+            timeout=10,
+        )
+        response.raise_for_status()
+        body = response.json()
+        points = body.get("dataPoints", [])
+        if points:
+            return points[0].get(json_field)
+        next_token = body.get("nextPageToken")
+        if not next_token:
+            return None
+        params = {**params, "page_token": next_token}
+    return None
+
+
 def fetch_daily_rollup(creds: Credentials, data_type: str) -> dict | None:
     """POSTs a 1-day rollup for `data_type` and returns today's bucket."""
     today = date.today()
@@ -135,25 +170,14 @@ def build_status() -> dict:
         round(calories_bucket["totalCalories"]["kcalSum"]) if calories_bucket else None
     )
 
-    # Field names below (dailyRestingHeartRate / sleep) follow the
-    # <camelCase of the data type> convention confirmed for steps and
-    # active-zone-minutes, but are UNVERIFIED - both currently 403 with
-    # MISSING_OAUTH_SCOPE until a re-consent grants health_metrics_and_
-    # measurements.readonly and sleep.readonly. Re-check the actual JSON
-    # shape the first time these come back with real data.
-    resting_hr_points = (
-        safe_metric(
-            warnings, "restingHeartRate", fetch_data_points,
-            creds, "daily-resting-heart-rate", start_time, "dailyRestingHeartRate",
-        )
-        or []
+    resting_hr_point = safe_metric(
+        warnings, "restingHeartRate", fetch_latest_data_point,
+        creds, "daily-resting-heart-rate", "dailyRestingHeartRate",
     )
-    resting_hr = resting_hr_points[-1].get("beatsPerMinute") if resting_hr_points else None
+    resting_hr = int(resting_hr_point["beatsPerMinute"]) if resting_hr_point else None
 
-    sleep_points = (
-        safe_metric(warnings, "sleep", fetch_data_points, creds, "sleep", start_time, "sleep") or []
-    )
-    sleep_summary = sleep_points[-1] if sleep_points else None
+    sleep_point = safe_metric(warnings, "sleep", fetch_latest_data_point, creds, "sleep", "sleep")
+    sleep_summary = sleep_point.get("summary") if sleep_point else None
 
     return {
         "ok": True,
@@ -163,7 +187,10 @@ def build_status() -> dict:
         "calories": calories_total,
         "restingHeartRate": resting_hr,
         "sleep": (
-            {"minutesAsleep": sleep_summary.get("minutesAsleep"), "minutesAwake": sleep_summary.get("minutesAwake")}
+            {
+                "minutesAsleep": int(sleep_summary["minutesAsleep"]),
+                "minutesAwake": int(sleep_summary["minutesAwake"]),
+            }
             if sleep_summary
             else None
         ),
