@@ -232,6 +232,8 @@ Panel {
           wrapMode: Text.WordWrap
         }
 
+        PanelSeparator { foreground: root.foreground }
+
         Column {
           width: parent.width
           spacing: Style.space(14)
