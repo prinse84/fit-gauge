@@ -215,7 +215,6 @@ Panel {
               rings: root.barRings
               dataOk: service.hasData
               trackColor: root.trackColor
-              glowColor: root.ringColors[0]
               active: root.opened
               width: Style.font.display
               height: Style.font.display
