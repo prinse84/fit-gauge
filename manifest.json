@@ -6,7 +6,7 @@
   "author": "prinse84",
   "description": "At-a-glance Fitbit stats in the Omarchy bar",
   "kinds": ["bar-widget"],
-  "entryPoints": { "barWidget": "BarWidget.qml" },
+  "entryPoints": { "barWidget": "Panel.qml" },
   "barWidget": {
     "displayName": "Fit Gauge",
     "description": "At-a-glance Fitbit stats in the Omarchy bar",
