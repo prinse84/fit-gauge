@@ -55,8 +55,14 @@ Panel {
     return Math.max(0, Math.min(1, value / goal))
   }
 
-  function countText(value, goal) {
-    return value !== null && value !== undefined ? value + " / " + goal : "—"
+  // Row values show the current reading only, right-aligned - the fill bar
+  // beneath already encodes progress toward the goal, so printing "/ 11000"
+  // too would just be the same information twice. The goal itself is only
+  // discoverable via plugin settings now, not from the popup - an accepted
+  // tradeoff for keeping this a glance rather than a report.
+  function countText(value) {
+    if (value === null || value === undefined) return "—"
+    return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
   }
 
   function sleepText(sleep) {
@@ -172,21 +178,21 @@ Panel {
 
           MetricRow {
             label: "Steps"
-            value: root.countText(service.steps, root.stepGoal)
+            value: root.countText(service.steps)
             frac: root.fraction(service.steps, root.stepGoal)
-            ringColor: root.stepColor
+            fillColor: root.stepColor
           }
           MetricRow {
             label: "Active Zone Minutes"
-            value: root.countText(service.activeZoneMinutes, root.azmGoal)
+            value: root.countText(service.activeZoneMinutes)
             frac: root.fraction(service.activeZoneMinutes, root.azmGoal)
-            ringColor: root.azmColor
+            fillColor: root.azmColor
           }
           MetricRow {
-            label: "Calories"
-            value: root.countText(service.calories, root.calorieGoal)
+            label: "Calories Burned"
+            value: root.countText(service.calories)
             frac: root.fraction(service.calories, root.calorieGoal)
-            ringColor: root.calorieColor
+            fillColor: root.calorieColor
           }
         }
 
@@ -209,43 +215,51 @@ Panel {
     }
   }
 
-  component MetricRow: Row {
+  // Label top-left, value top-right, a full-width fill bar underneath.
+  // Fixed-width bars (not label width) are what keep the 3 rows visually
+  // aligned regardless of how long each metric's label is.
+  component MetricRow: Column {
+    id: metricRoot
     property string label: ""
     property string value: ""
     property real frac: 0
-    property color ringColor: root.foreground
+    property color fillColor: root.foreground
 
     width: parent.width
-    spacing: Style.space(10)
+    spacing: Style.space(4)
 
-    RingGauge {
-      width: Style.font.title
-      height: Style.font.title
-      anchors.verticalCenter: parent.verticalCenter
-      frac: parent.frac
-      ringColor: parent.ringColor
+    Row {
+      id: headerRow
+      width: parent.width
+
+      Text {
+        textFormat: Text.PlainText
+        text: metricRoot.label
+        color: root.foreground
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.body
+        width: headerRow.width - valueText.implicitWidth - Style.space(8)
+        elide: Text.ElideRight
+      }
+
+      Item { width: Style.space(8); height: 1 }
+
+      Text {
+        id: valueText
+        textFormat: Text.PlainText
+        text: metricRoot.value
+        color: root.dim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+      }
+    }
+
+    FillBar {
+      width: parent.width
+      implicitHeight: Style.space(6)
+      frac: metricRoot.frac
+      fillColor: metricRoot.fillColor
       trackColor: root.trackColor
-    }
-
-    Text {
-      textFormat: Text.PlainText
-      anchors.verticalCenter: parent.verticalCenter
-      text: parent.label
-      color: root.foreground
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.body
-      width: Math.max(0, parent.width - parent.children[0].width - valueText.implicitWidth - parent.spacing * 2)
-      elide: Text.ElideRight
-    }
-
-    Text {
-      id: valueText
-      textFormat: Text.PlainText
-      anchors.verticalCenter: parent.verticalCenter
-      text: parent.value
-      color: root.dim
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
     }
   }
 
