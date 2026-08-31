@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "prinse84.fit-gauge",
+  "name": "Fit Gauge",
+  "version": "0.1.0",
+  "author": "prinse84",
+  "description": "At-a-glance Fitbit stats in the Omarchy bar",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "BarWidget.qml" },
+  "barWidget": {
+    "displayName": "Fit Gauge",
+    "description": "At-a-glance Fitbit stats in the Omarchy bar",
+    "category": "Health",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
