@@ -61,6 +61,19 @@ Item {
     fetchProcess.running = true
   }
 
+  // Only for a process that never produced any stdout at all - i.e. it
+  // couldn't even start (missing script/venv), as opposed to a script
+  // that ran and reported its own error via JSON (already a friendly
+  // message from fitbit_status.py itself by the time it reaches
+  // applyStatus's !parsed.ok branch below). This is a shell/exec-level
+  // failure Python never sees, so it can only be handled here.
+  function friendlyProcessError(raw) {
+    if (raw.indexOf("No such file or directory") !== -1) {
+      return "Fit Gauge isn't set up correctly - the fetch script or its Python environment is missing."
+    }
+    return raw
+  }
+
   function applyStatus(raw) {
     var parsed
     try {
@@ -110,7 +123,7 @@ Item {
       var stderr = String(fetchStderr.text || root._stderr || "")
       if (stdout.length > 0) root.applyStatus(stdout)
       else {
-        root.lastError = stderr || ("fitbit_status.py exited " + exitCode)
+        root.lastError = root.friendlyProcessError(stderr || ("fitbit_status.py exited " + exitCode))
         root.healthy = false
       }
     }

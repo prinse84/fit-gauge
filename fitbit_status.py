@@ -15,6 +15,7 @@ from pathlib import Path
 
 import keyring
 import requests
+from google.auth.exceptions import GoogleAuthError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -289,8 +290,28 @@ def build_status() -> dict:
 
 
 if __name__ == "__main__":
+    # This only wraps get_credentials() failures (the one call in
+    # build_status() not already isolated per-metric by safe_metric) - a
+    # single metric's own network/API hiccup degrades to a warning, not a
+    # crash here. So realistically this outer catch is almost always
+    # either a broken/expired OAuth token (needs re-auth) or a network
+    # failure during the token refresh call itself - map both to a plain
+    # sentence with a next step, fall back to the raw message for anything
+    # genuinely unexpected rather than hiding it.
     try:
         print(json.dumps(build_status()))
+    except GoogleAuthError:
+        print(json.dumps({
+            "ok": False,
+            "error": "Reconnect needed - run 'python fitbit_status.py' in a terminal to re-authenticate.",
+        }))
+        sys.exit(1)
+    except requests.exceptions.RequestException:
+        print(json.dumps({
+            "ok": False,
+            "error": "Can't reach Fitbit right now - will retry automatically.",
+        }))
+        sys.exit(1)
     except Exception as exc:  # keep the widget's Process handler simple: one line, always
         print(json.dumps({"ok": False, "error": str(exc)}))
         sys.exit(1)
