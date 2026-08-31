@@ -13,7 +13,7 @@
     "category": "Health",
     "allowMultiple": false,
     "defaultSection": "right",
-    "defaults": { "refreshIntervalSec": 300 },
+    "defaults": { "refreshIntervalSec": 300, "stepGoal": 11000, "azmGoal": 24, "calorieGoal": 440 },
     "schema": [
       {
         "key": "refreshIntervalSec",
@@ -23,6 +23,33 @@
         "max": 3600,
         "step": 30,
         "defaultValue": 300
+      },
+      {
+        "key": "stepGoal",
+        "type": "integer",
+        "label": "Step goal",
+        "min": 1000,
+        "max": 50000,
+        "step": 500,
+        "defaultValue": 11000
+      },
+      {
+        "key": "azmGoal",
+        "type": "integer",
+        "label": "Active Zone Minutes goal",
+        "min": 5,
+        "max": 120,
+        "step": 1,
+        "defaultValue": 24
+      },
+      {
+        "key": "calorieGoal",
+        "type": "integer",
+        "label": "Active calorie goal",
+        "min": 50,
+        "max": 2000,
+        "step": 10,
+        "defaultValue": 440
       }
     ]
   }
