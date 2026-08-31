@@ -16,11 +16,20 @@ Item {
   readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 300, 60, 3600)
   readonly property bool busy: fetchProcess.running
 
-  property bool ok: false
+  // hasData latches true forever once any fetch has ever succeeded - it
+  // gates whether there's anything to render at all (first-load state).
+  // healthy reflects only the MOST RECENT poll and resets on every
+  // failure - this is what drives the stale/desaturated visual, so a
+  // transient network blip doesn't blank last-known-good values, it just
+  // marks them stale until the next successful poll.
+  property bool hasData: false
+  property bool healthy: false
   property string fetchedAtIso: ""
   property var steps: null
   property var activeZoneMinutes: null
   property var calories: null
+  property var distanceMeters: null
+  property var floors: null
   property var restingHeartRate: null
   property var sleep: null
   property var warnings: []
@@ -58,17 +67,22 @@ Item {
       parsed = JSON.parse(raw)
     } catch (e) {
       lastError = "Failed to parse fitbit_status.py output"
+      healthy = false
       return
     }
     if (!parsed.ok) {
       lastError = parsed.error || "fitbit_status.py reported an error"
+      healthy = false
       return
     }
-    ok = true
+    hasData = true
+    healthy = true
     fetchedAtIso = parsed.fetchedAtIso || ""
     steps = parsed.steps
     activeZoneMinutes = parsed.activeZoneMinutes
     calories = parsed.calories
+    distanceMeters = parsed.distanceMeters
+    floors = parsed.floors
     restingHeartRate = parsed.restingHeartRate
     sleep = parsed.sleep
     warnings = parsed.warnings || []
@@ -95,7 +109,10 @@ Item {
       var stdout = String(fetchStdout.text || root._stdout || "")
       var stderr = String(fetchStderr.text || root._stderr || "")
       if (stdout.length > 0) root.applyStatus(stdout)
-      else root.lastError = stderr || ("fitbit_status.py exited " + exitCode)
+      else {
+        root.lastError = stderr || ("fitbit_status.py exited " + exitCode)
+        root.healthy = false
+      }
     }
   }
 }

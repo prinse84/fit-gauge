@@ -38,6 +38,17 @@ Panel {
   readonly property var ringColors: [Color.accent, hueRotate(Color.accent, 35), hueRotate(Color.accent, -35)]
   readonly property color trackColor: Color.muted
 
+  // Passive staleness cue: desaturate every ring/fill-bar color when the
+  // most recent poll failed (service.healthy is false), while still
+  // showing the last-known values underneath - a transient blip shouldn't
+  // blank the display, just mark it as possibly out of date. Scoped to
+  // poll health only (not underlying Fitbit device sync lag, which isn't
+  // detectable from the data this plugin currently fetches).
+  function desaturate(c) {
+    return Qt.hsva(c.hsvHue, c.hsvSaturation * 0.3, c.hsvValue * 0.8, c.a)
+  }
+  readonly property var effectiveRingColors: service.healthy ? ringColors : ringColors.map(desaturate)
+
   // Denominators the Google Health API doesn't provide (no goals endpoint
   // exists) - see manifest.json's schema for where these come from and the
   // fit-gauge project notes for how the defaults were picked (Fitbit's own
@@ -108,9 +119,9 @@ Panel {
     metricByLabel(stringSetting("ring3Metric", "Calories Burned"))
   ]
   readonly property var barRings: [
-    { frac: fraction(selectedMetrics[0].value, selectedMetrics[0].goal), color: ringColors[0] },
-    { frac: fraction(selectedMetrics[1].value, selectedMetrics[1].goal), color: ringColors[1] },
-    { frac: fraction(selectedMetrics[2].value, selectedMetrics[2].goal), color: ringColors[2] }
+    { frac: fraction(selectedMetrics[0].value, selectedMetrics[0].goal), color: effectiveRingColors[0] },
+    { frac: fraction(selectedMetrics[1].value, selectedMetrics[1].goal), color: effectiveRingColors[1] },
+    { frac: fraction(selectedMetrics[2].value, selectedMetrics[2].goal), color: effectiveRingColors[2] }
   ]
 
   function sleepText(sleep) {
@@ -166,7 +177,7 @@ Panel {
     iconComponent: Component {
       TriRingGauge {
         rings: root.barRings
-        dataOk: service.ok
+        dataOk: service.hasData
         trackColor: root.trackColor
       }
     }
@@ -202,12 +213,23 @@ Panel {
           iconComponent: Component {
             TriRingGauge {
               rings: root.barRings
-              dataOk: service.ok
+              dataOk: service.hasData
               trackColor: root.trackColor
               width: Style.font.display
               height: Style.font.display
             }
           }
+        }
+
+        Text {
+          textFormat: Text.PlainText
+          visible: !service.healthy
+          width: parent.width
+          text: service.lastError !== "" ? service.lastError : "Last sync failed"
+          color: root.dim
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+          wrapMode: Text.WordWrap
         }
 
         Column {
@@ -223,7 +245,7 @@ Panel {
               label: modelData.label
               value: modelData.valueText
               frac: root.fraction(modelData.value, modelData.goal)
-              fillColor: root.ringColors[index]
+              fillColor: root.effectiveRingColors[index]
             }
           }
         }
