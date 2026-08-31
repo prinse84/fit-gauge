@@ -13,7 +13,17 @@
     "category": "Health",
     "allowMultiple": false,
     "defaultSection": "right",
-    "defaults": { "refreshIntervalSec": 300, "stepGoal": 11000, "azmGoal": 24, "calorieGoal": 440 },
+    "defaults": {
+      "refreshIntervalSec": 300,
+      "stepGoal": 11000,
+      "azmGoal": 24,
+      "calorieGoal": 440,
+      "distanceGoalMeters": 8851,
+      "floorsGoal": 11,
+      "ring1Metric": "Steps",
+      "ring2Metric": "Active Zone Minutes",
+      "ring3Metric": "Calories Burned"
+    },
     "schema": [
       {
         "key": "refreshIntervalSec",
@@ -50,6 +60,46 @@
         "max": 2000,
         "step": 10,
         "defaultValue": 440
+      },
+      {
+        "key": "distanceGoalMeters",
+        "type": "integer",
+        "label": "Distance goal (meters)",
+        "description": "5.5 mi ≈ 8851m. No non-integer settings type is available, so this is stored in meters and shown as miles in the popup.",
+        "min": 500,
+        "max": 50000,
+        "step": 100,
+        "defaultValue": 8851
+      },
+      {
+        "key": "floorsGoal",
+        "type": "integer",
+        "label": "Floors goal",
+        "min": 1,
+        "max": 100,
+        "step": 1,
+        "defaultValue": 11
+      },
+      {
+        "key": "ring1Metric",
+        "type": "enum",
+        "label": "Ring 1 metric (outer)",
+        "options": ["Steps", "Active Zone Minutes", "Calories Burned", "Distance", "Floors"],
+        "defaultValue": "Steps"
+      },
+      {
+        "key": "ring2Metric",
+        "type": "enum",
+        "label": "Ring 2 metric (middle)",
+        "options": ["Steps", "Active Zone Minutes", "Calories Burned", "Distance", "Floors"],
+        "defaultValue": "Active Zone Minutes"
+      },
+      {
+        "key": "ring3Metric",
+        "type": "enum",
+        "label": "Ring 3 metric (inner)",
+        "options": ["Steps", "Active Zone Minutes", "Calories Burned", "Distance", "Floors"],
+        "defaultValue": "Calories Burned"
       }
     ]
   }

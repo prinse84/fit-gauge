@@ -20,35 +20,45 @@ Panel {
   // Hue-rotates a QML color in HSV space, wrapping back into [0,1). Derives
   // the 3 ring colors from the theme's own accent instead of fixed hex
   // values, so the glyph matches whatever Omarchy theme is active and
-  // updates live on a theme switch (Color.accent is a live binding). Rings
-  // are already disambiguated by position (outer/mid/inner, or row order
-  // in the popup), so color only needs to fit the theme, not carry metric
-  // identity - Color.urgent was rejected as a ring color for this reason:
-  // it's semantically red-alert elsewhere in the shell (battery-low, DND)
-  // and would clash.
+  // updates live on a theme switch (Color.accent is a live binding).
+  //
+  // Colors are tied to ring SLOT (outer/mid/inner), not to a specific
+  // metric - since which metric occupies which slot is now user-chosen
+  // (see metricRegistry below), a metric's color changes if you move it
+  // to a different ring, which is fine: rings are already disambiguated
+  // by position, so color only ever needed to fit the theme, not carry
+  // metric identity. Color.urgent was rejected as a ring color for the
+  // same reason it was rejected before: semantically red-alert elsewhere
+  // in the shell (battery-low, DND), and would clash.
   function hueRotate(base, degrees) {
     var h = base.hsvHue + degrees / 360.0
     h = h - Math.floor(h)
     return Qt.hsva(h, base.hsvSaturation, base.hsvValue, base.a)
   }
-  readonly property color stepColor: Color.accent
-  readonly property color azmColor: hueRotate(Color.accent, 35)
-  readonly property color calorieColor: hueRotate(Color.accent, -35)
+  readonly property var ringColors: [Color.accent, hueRotate(Color.accent, 35), hueRotate(Color.accent, -35)]
   readonly property color trackColor: Color.muted
 
   // Denominators the Google Health API doesn't provide (no goals endpoint
   // exists) - see manifest.json's schema for where these come from and the
   // fit-gauge project notes for how the defaults were picked (Fitbit's own
-  // default step goal, the WHO/AHA weekly-minutes guideline for AZM, and a
-  // fitness-press midpoint for calories - each bumped 10% above baseline).
+  // defaults for steps/floors, the WHO/AHA weekly-minutes guideline for
+  // AZM, and fitness-press midpoints for calories/distance - each bumped
+  // 10% above baseline). distanceGoalMeters is stored in meters (the
+  // settings schema has no non-integer type) but shown as miles.
   function goalSetting(key, fallback) {
     var value = root.settings ? root.settings[key] : undefined
     var n = parseInt(String(value === undefined || value === null ? fallback : value), 10)
     return isFinite(n) && n > 0 ? n : fallback
   }
+  function stringSetting(key, fallback) {
+    var value = root.settings ? root.settings[key] : undefined
+    return (value === undefined || value === null || value === "") ? fallback : String(value)
+  }
   readonly property int stepGoal: goalSetting("stepGoal", 11000)
   readonly property int azmGoal: goalSetting("azmGoal", 24)
   readonly property int calorieGoal: goalSetting("calorieGoal", 440)
+  readonly property int distanceGoalMeters: goalSetting("distanceGoalMeters", 8851)
+  readonly property int floorsGoal: goalSetting("floorsGoal", 11)
 
   function fraction(value, goal) {
     if (value === null || value === undefined) return 0
@@ -64,6 +74,39 @@ Panel {
     if (value === null || value === undefined) return "—"
     return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
   }
+  function distanceText(meters) {
+    if (meters === null || meters === undefined) return "—"
+    return (meters / 1609.344).toFixed(1) + " mi"
+  }
+
+  // The pool every ring-selection setting picks from. Labels double as the
+  // lookup key (and match manifest.json's enum options verbatim) so there's
+  // one source of truth for a metric's identity instead of a separate
+  // id/label pair.
+  readonly property var metricRegistry: [
+    { label: "Steps", value: service.steps, valueText: countText(service.steps), goal: stepGoal },
+    { label: "Active Zone Minutes", value: service.activeZoneMinutes, valueText: countText(service.activeZoneMinutes), goal: azmGoal },
+    { label: "Calories Burned", value: service.calories, valueText: countText(service.calories), goal: calorieGoal },
+    { label: "Distance", value: service.distanceMeters, valueText: distanceText(service.distanceMeters), goal: distanceGoalMeters },
+    { label: "Floors", value: service.floors, valueText: countText(service.floors), goal: floorsGoal }
+  ]
+  function metricByLabel(label) {
+    for (var i = 0; i < metricRegistry.length; i++) {
+      if (metricRegistry[i].label === label) return metricRegistry[i]
+    }
+    return metricRegistry[0]
+  }
+  // The 3 settings-selected metrics, outer to inner / row 1 to row 3.
+  readonly property var selectedMetrics: [
+    metricByLabel(stringSetting("ring1Metric", "Steps")),
+    metricByLabel(stringSetting("ring2Metric", "Active Zone Minutes")),
+    metricByLabel(stringSetting("ring3Metric", "Calories Burned"))
+  ]
+  readonly property var barRings: [
+    { frac: fraction(selectedMetrics[0].value, selectedMetrics[0].goal), color: ringColors[0] },
+    { frac: fraction(selectedMetrics[1].value, selectedMetrics[1].goal), color: ringColors[1] },
+    { frac: fraction(selectedMetrics[2].value, selectedMetrics[2].goal), color: ringColors[2] }
+  ]
 
   function sleepText(sleep) {
     if (!sleep || sleep.minutesAsleep === null || sleep.minutesAsleep === undefined) return "—"
@@ -117,13 +160,8 @@ Panel {
     bar: root.bar
     iconComponent: Component {
       TriRingGauge {
-        stepsFrac: root.fraction(service.steps, root.stepGoal)
-        azmFrac: root.fraction(service.activeZoneMinutes, root.azmGoal)
-        calFrac: root.fraction(service.calories, root.calorieGoal)
+        rings: root.barRings
         dataOk: service.ok
-        stepColor: root.stepColor
-        azmColor: root.azmColor
-        calorieColor: root.calorieColor
         trackColor: root.trackColor
       }
     }
@@ -158,13 +196,8 @@ Panel {
           fontFamily: root.fontFamily
           iconComponent: Component {
             TriRingGauge {
-              stepsFrac: root.fraction(service.steps, root.stepGoal)
-              azmFrac: root.fraction(service.activeZoneMinutes, root.azmGoal)
-              calFrac: root.fraction(service.calories, root.calorieGoal)
+              rings: root.barRings
               dataOk: service.ok
-              stepColor: root.stepColor
-              azmColor: root.azmColor
-              calorieColor: root.calorieColor
               trackColor: root.trackColor
               width: Style.font.display
               height: Style.font.display
@@ -176,23 +209,17 @@ Panel {
           width: parent.width
           spacing: Style.space(10)
 
-          MetricRow {
-            label: "Steps"
-            value: root.countText(service.steps)
-            frac: root.fraction(service.steps, root.stepGoal)
-            fillColor: root.stepColor
-          }
-          MetricRow {
-            label: "Active Zone Minutes"
-            value: root.countText(service.activeZoneMinutes)
-            frac: root.fraction(service.activeZoneMinutes, root.azmGoal)
-            fillColor: root.azmColor
-          }
-          MetricRow {
-            label: "Calories Burned"
-            value: root.countText(service.calories)
-            frac: root.fraction(service.calories, root.calorieGoal)
-            fillColor: root.calorieColor
+          Repeater {
+            model: root.selectedMetrics
+            MetricRow {
+              required property var modelData
+              required property int index
+              width: parent.width
+              label: modelData.label
+              value: modelData.valueText
+              frac: root.fraction(modelData.value, modelData.goal)
+              fillColor: root.ringColors[index]
+            }
           }
         }
 

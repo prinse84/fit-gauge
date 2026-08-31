@@ -170,6 +170,30 @@ def build_status() -> dict:
         round(calories_bucket["totalCalories"]["kcalSum"]) if calories_bucket else None
     )
 
+    # Same list+filter+sum shape as steps/AZM - each point is one minute's
+    # distance in millimeters (confirmed live), summed and converted to
+    # meters. Same "pages can come back empty but still carry a
+    # nextPageToken" quirk as everything else here, already handled by
+    # fetch_data_points's unbounded pagination loop.
+    distance_points = (
+        safe_metric(warnings, "distance", fetch_data_points, creds, "distance", start_time, "distance") or []
+    )
+    distance_meters_total = (
+        round(sum(int(p.get("millimeters", 0)) for p in distance_points) / 1000) if distance_points else None
+    )
+
+    # UNVERIFIED: this account's device reports no floors data at all (the
+    # dailyRollUp call returns 200 with an empty body no matter the date
+    # range tried), so this field name is inferred from total-calories'
+    # working shape (rollupDataPoints[].totalCalories.kcalSum), not
+    # confirmed against a real response. safe_metric degrades a wrong
+    # guess to null + a warning rather than crashing - re-check the actual
+    # field name the first time this comes back with real data.
+    floors_bucket = safe_metric(warnings, "floors", fetch_daily_rollup, creds, "floors")
+    floors_total = (
+        round(floors_bucket["floors"]["count"]) if floors_bucket and "floors" in floors_bucket else None
+    )
+
     resting_hr_point = safe_metric(
         warnings, "restingHeartRate", fetch_latest_data_point,
         creds, "daily-resting-heart-rate", "dailyRestingHeartRate",
@@ -185,6 +209,8 @@ def build_status() -> dict:
         "steps": steps_total,
         "activeZoneMinutes": azm_total,
         "calories": calories_total,
+        "distanceMeters": distance_meters_total,
+        "floors": floors_total,
         "restingHeartRate": resting_hr,
         "sleep": (
             {
