@@ -13,15 +13,23 @@ import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+import keyring
 import requests
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 CONFIG_DIR = Path.home() / ".config" / "fit-gauge"
+# Legacy plaintext locations - read once for a one-time migration into the
+# keyring (see load_client_config/load_stored_credentials_json below), then
+# deleted. Nothing writes to these paths anymore.
 CLIENT_SECRET_PATH = CONFIG_DIR / "client_secret.json"
 CREDENTIALS_PATH = CONFIG_DIR / "credentials.json"
 API_BASE = "https://health.googleapis.com/v4"
+
+KEYRING_SERVICE = "fit-gauge"
+KEYRING_CREDENTIALS_ACCOUNT = "google-health-credentials"
+KEYRING_CLIENT_SECRET_ACCOUNT = "google-health-client-secret"
 
 # Union of every scope the metrics below need. Google only grants what the
 # user actually consents to on the OAuth screen; a metric whose scope wasn't
@@ -35,24 +43,74 @@ SCOPES = [
 ]
 
 
-def get_credentials() -> Credentials:
+def migrate_client_secret_if_present() -> None:
+    """One-time migration: if client_secret.json still exists on disk (first
+    run, or a pre-keyring install upgrading in place), move it into the
+    keyring and delete it.
+
+    Called unconditionally at the top of get_credentials(), not just from
+    the fresh-OAuth-flow branch - client_secret.json is only ever *read*
+    when starting a new interactive flow, which for an install with
+    already-valid stored credentials may never happen again. Migrating it
+    only as a side effect of that branch would leave it sitting in
+    plaintext indefinitely for exactly the accounts least likely to need
+    it read again.
+    """
+    if not CLIENT_SECRET_PATH.exists():
+        return
+    if not keyring.get_password(KEYRING_SERVICE, KEYRING_CLIENT_SECRET_ACCOUNT):
+        config = json.loads(CLIENT_SECRET_PATH.read_text())
+        keyring.set_password(KEYRING_SERVICE, KEYRING_CLIENT_SECRET_ACCOUNT, json.dumps(config))
+    CLIENT_SECRET_PATH.unlink()
+
+
+def load_client_config() -> dict:
+    """OAuth client config (this app's id/secret) from the keyring - only
+    needed when starting a fresh interactive OAuth flow. migrate_client_
+    secret_if_present() already ran by this point (see get_credentials()),
+    so the plaintext file fallback here is defensive, not the normal path.
+    """
+    stored = keyring.get_password(KEYRING_SERVICE, KEYRING_CLIENT_SECRET_ACCOUNT)
+    if stored:
+        return json.loads(stored)
+    return json.loads(CLIENT_SECRET_PATH.read_text())
+
+
+def load_stored_credentials_json() -> str | None:
+    """Stored OAuth token JSON, preferring the keyring. Falls back to the
+    plaintext file only for a pre-keyring install upgrading in place, then
+    migrates it into the keyring and deletes the file, same as
+    load_client_config()."""
+    stored = keyring.get_password(KEYRING_SERVICE, KEYRING_CREDENTIALS_ACCOUNT)
+    if stored:
+        return stored
     if CREDENTIALS_PATH.exists():
-        stored_scopes = json.loads(CREDENTIALS_PATH.read_text()).get("scopes") or SCOPES
-        creds = Credentials.from_authorized_user_file(str(CREDENTIALS_PATH), stored_scopes)
+        raw = CREDENTIALS_PATH.read_text()
+        keyring.set_password(KEYRING_SERVICE, KEYRING_CREDENTIALS_ACCOUNT, raw)
+        CREDENTIALS_PATH.unlink()
+        return raw
+    return None
+
+
+def get_credentials() -> Credentials:
+    migrate_client_secret_if_present()
+    stored = load_stored_credentials_json()
+    if stored:
+        parsed = json.loads(stored)
+        creds = Credentials.from_authorized_user_info(parsed, parsed.get("scopes") or SCOPES)
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
             save_credentials(creds)
         return creds
 
-    flow = InstalledAppFlow.from_client_secrets_file(str(CLIENT_SECRET_PATH), SCOPES)
+    flow = InstalledAppFlow.from_client_config(load_client_config(), SCOPES)
     creds = flow.run_local_server(port=0)
     save_credentials(creds)
     return creds
 
 
 def save_credentials(creds: Credentials) -> None:
-    CREDENTIALS_PATH.write_text(creds.to_json())
-    CREDENTIALS_PATH.chmod(0o600)
+    keyring.set_password(KEYRING_SERVICE, KEYRING_CREDENTIALS_ACCOUNT, creds.to_json())
 
 
 def fetch_data_points(creds: Credentials, data_type: str, start_time: str, json_field: str) -> list:
