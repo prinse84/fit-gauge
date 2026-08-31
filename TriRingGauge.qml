@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 
 // The concentric-ring glyph, fill fraction only, no numbers - shared
 // between the bar icon and the popup's hero icon so both are the same
@@ -13,12 +14,62 @@ Item {
   property var rings: []  // [{frac, color}, ...] outer to inner, max 3
   property bool dataOk: true
   property color trackColor: "gray"
+  property color glowColor: "white"
+
+  // Reveal/glow animation, opt-in: bind `active` to something that flips
+  // true each time this instance should replay (e.g. a popup's `opened`).
+  // Left false by default (revealProgress stays at 1, glowIntensity at 0
+  // - fully shown, no glow, no animation) so the bar-icon instance of
+  // this component is entirely unaffected unless it explicitly opts in.
+  //
+  // This is a property binding, not a method call, because the popup's
+  // content tree persists across open/close (confirmed via KeyboardPanel
+  // - it fades opacity rather than destroying/recreating), so this
+  // instance is created once and reused - Component.onCompleted only
+  // fires the very first time, not on every re-open. A bound `active`
+  // property re-fires onActiveChanged every time, matching the existing
+  // heroMetaTick pattern in Panel.qml for the same reason.
+  property bool active: false
+  property real revealProgress: 1
+  property real glowIntensity: 0
 
   readonly property var radiusRatios: [0.46, 0.32, 0.18]
+
+  onActiveChanged: if (active) playAnim.restart()
+
+  ParallelAnimation {
+    id: playAnim
+    NumberAnimation {
+      target: root; property: "revealProgress"
+      from: 0; to: 1; duration: 600; easing.type: Easing.OutCubic
+    }
+    SequentialAnimation {
+      PauseAnimation { duration: 380 }
+      NumberAnimation {
+        target: root; property: "glowIntensity"
+        from: 0; to: 1; duration: 220; easing.type: Easing.OutQuad
+      }
+      NumberAnimation {
+        target: root; property: "glowIntensity"
+        from: 1; to: 0; duration: 450; easing.type: Easing.InQuad
+      }
+    }
+  }
 
   Canvas {
     id: canvas
     anchors.fill: parent
+
+    layer.enabled: root.glowIntensity > 0.001
+    layer.effect: MultiEffect {
+      shadowEnabled: true
+      shadowColor: root.glowColor
+      shadowBlur: 1.0
+      shadowScale: 1.05
+      shadowOpacity: root.glowIntensity
+      shadowHorizontalOffset: 0
+      shadowVerticalOffset: 0
+    }
 
     onPaint: {
       var ctx = getContext("2d")
@@ -28,7 +79,7 @@ Item {
       for (var i = 0; i < root.rings.length && i < root.radiusRatios.length; i++) {
         var ring = root.rings[i]
         var r = width * root.radiusRatios[i]
-        var frac = root.dataOk ? Math.min(1, Math.max(0, ring.frac || 0)) : 0
+        var frac = root.dataOk ? Math.min(1, Math.max(0, ring.frac || 0)) * root.revealProgress : 0
         ctx.lineWidth = lineWidth
         ctx.strokeStyle = root.trackColor
         ctx.beginPath()
@@ -50,6 +101,7 @@ Item {
   onRingsChanged: canvas.repaint()
   onDataOkChanged: canvas.repaint()
   onTrackColorChanged: canvas.repaint()
+  onRevealProgressChanged: canvas.repaint()
   onWidthChanged: canvas.repaint()
   onHeightChanged: canvas.repaint()
 }
