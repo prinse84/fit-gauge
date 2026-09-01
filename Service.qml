@@ -16,11 +16,15 @@ Item {
   readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 300, 60, 3600)
   readonly property bool busy: fetchProcess.running
 
-  // Sedentary nudge (issue #23). Off by default - see nudgeEnabled.
+  // Stand-up nudge (issue #23). Off by default - see nudgeEnabled. Pure
+  // sedentary duration, no step data involved.
   readonly property bool nudgeEnabled: setting("sedentaryNudge", "Off") === "On"
   readonly property int nudgeSedentaryMinutes: intSetting("nudgeSedentaryMinutes", 45, 15, 180)
-  readonly property int nudgeWakeHour: intSetting("nudgeWakeHour", 7, 0, 23)
-  readonly property int nudgeSleepHour: intSetting("nudgeSleepHour", 23, 0, 23)
+
+  // Pace nudge (issue #24). Off by default - see paceNudgeEnabled.
+  // Independent of the stand-up nudge above; uses the pace curve below.
+  readonly property bool paceNudgeEnabled: setting("paceNudge", "Off") === "On"
+  readonly property int paceNudgeMarginPercent: intSetting("paceNudgeMarginPercent", 20, 5, 50)
   readonly property int stepGoal: intSetting("stepGoal", 11000, 1000, 50000)
 
   // hasData latches true forever once any fetch has ever succeeded - it
@@ -53,6 +57,7 @@ Item {
   property bool idleNow: true
   property double notIdleSinceMs: 0
   property bool nudgedThisStretch: false
+  property string paceNudgedDate: ""
 
   function setting(name, fallback) {
     var value = settings ? settings[name] : undefined
@@ -117,23 +122,51 @@ Item {
     lastError = ""
   }
 
-  // Expected steps by now, linearly paced across the configured waking
-  // window - avoids nagging at 9am for being behind the full-day goal.
-  function expectedSteps() {
+  // Anchors approximating published hourly step-pattern research (three
+  // weekday peaks - commute/lunch/evening - with dips during typical desk
+  // hours in between), grounded at one hard data point: ~70% of goal by 7pm
+  // predicts hitting the daily goal by end of day (Communications Medicine
+  // 2024, "Hourly step recommendations to achieve daily goals for working
+  // adults"). An opinionated, evidence-informed shape, not a precise curve
+  // for this app's own users - same spirit as the goal defaults.
+  readonly property var paceAnchors: [
+    { h: 7, f: 0.00 },
+    { h: 9, f: 0.15 },
+    { h: 11, f: 0.20 },
+    { h: 13, f: 0.40 },
+    { h: 16, f: 0.48 },
+    { h: 19, f: 0.70 },
+    { h: 23, f: 1.00 }
+  ]
+
+  function expectedStepsFraction() {
     var now = new Date()
     var hour = now.getHours() + now.getMinutes() / 60
-    var wake = root.nudgeWakeHour
-    var sleepHour = root.nudgeSleepHour
-    if (sleepHour <= wake) return root.stepGoal
-    var frac = (hour - wake) / (sleepHour - wake)
-    if (frac < 0) frac = 0
-    if (frac > 1) frac = 1
-    return Math.round(root.stepGoal * frac)
+    var anchors = root.paceAnchors
+    if (hour <= anchors[0].h) return anchors[0].f
+    for (var i = 0; i < anchors.length - 1; i++) {
+      var a = anchors[i]
+      var b = anchors[i + 1]
+      if (hour <= b.h) {
+        var t = (hour - a.h) / (b.h - a.h)
+        return a.f + t * (b.f - a.f)
+      }
+    }
+    return anchors[anchors.length - 1].f
   }
 
-  function behindPace() {
+  function expectedSteps() {
+    return Math.round(root.stepGoal * root.expectedStepsFraction())
+  }
+
+  // Behind by more than a margin (percent of expected), not just any gap -
+  // the expected value is intentionally low during desk-hour dips, so a
+  // tiny absolute miss there shouldn't count as "behind".
+  function behindByMargin() {
     if (root.steps === null || root.steps === undefined) return false
-    return root.steps < root.expectedSteps()
+    var expected = root.expectedSteps()
+    var threshold = expected * (1 - root.paceNudgeMarginPercent / 100)
+    return root.steps < threshold
   }
 
   function applyIdleStatus(raw) {
@@ -153,23 +186,45 @@ Item {
     }
     root.idleNow = idle
     root.maybeNudge()
+    root.maybePaceNudge()
   }
 
+  // Stand-up nudge: pure sedentary duration, no steps involved at all -
+  // prolonged uninterrupted sitting matters regardless of today's step
+  // total. Re-arms only when idle flips true again (a real break).
   function maybeNudge() {
     if (!root.nudgeEnabled || root.idleNow || root.nudgedThisStretch) return
     var minutesActive = (Date.now() - root.notIdleSinceMs) / 60000
     if (minutesActive < root.nudgeSedentaryMinutes) return
-    if (!root.behindPace()) return
     root.nudgedThisStretch = true
     root.sendNudge()
   }
 
   function sendNudge() {
     if (nudgeProcess.running) return
-    var expected = root.expectedSteps()
-    var body = "You've been at the desk a while - " + (root.steps || 0) + " steps so far, pace says ~" + expected + " by now. Stand up?"
+    var body = "You've been at the desk a while. Stand up, stretch, grab some water?"
     nudgeProcess.command = ["notify-send", "-u", "normal", "-a", "Fit Gauge", "Time to move", body]
     nudgeProcess.running = true
+  }
+
+  // Pace nudge: independent of sedentary duration - a once-a-day "today is
+  // trending behind" check using the pace curve above. Re-arms at the next
+  // calendar day, not on idle transitions.
+  function maybePaceNudge() {
+    if (!root.paceNudgeEnabled || root.idleNow) return
+    var todayStr = Qt.formatDate(new Date(), "yyyy-MM-dd")
+    if (root.paceNudgedDate === todayStr) return
+    if (!root.behindByMargin()) return
+    root.paceNudgedDate = todayStr
+    root.sendPaceNudge()
+  }
+
+  function sendPaceNudge() {
+    if (paceNudgeProcess.running) return
+    var expected = root.expectedSteps()
+    var body = "You're at " + (root.steps || 0) + " steps - typical pace for this time of day is around " + expected + ". A short walk would help close the gap."
+    paceNudgeProcess.command = ["notify-send", "-u", "normal", "-a", "Fit Gauge", "Behind pace today", body]
+    paceNudgeProcess.running = true
   }
 
   Timer {
@@ -185,7 +240,7 @@ Item {
     id: idlePollTimer
     interval: 30000
     repeat: true
-    running: root.nudgeEnabled
+    running: root.nudgeEnabled || root.paceNudgeEnabled
     triggeredOnStart: true
     onTriggered: if (!idleProcess.running) idleProcess.running = true
   }
@@ -199,6 +254,12 @@ Item {
 
   Process {
     id: nudgeProcess
+    running: false
+    command: []
+  }
+
+  Process {
+    id: paceNudgeProcess
     running: false
     command: []
   }

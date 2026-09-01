@@ -25,8 +25,8 @@
       "ring3Metric": "Calories Burned",
       "sedentaryNudge": "Off",
       "nudgeSedentaryMinutes": 45,
-      "nudgeWakeHour": 7,
-      "nudgeSleepHour": 23
+      "paceNudge": "Off",
+      "paceNudgeMarginPercent": 20
     },
     "schema": [
       {
@@ -109,39 +109,38 @@
       {
         "key": "sedentaryNudge",
         "type": "enum",
-        "label": "Sedentary nudge",
-        "description": "Opt-in. Sends a desktop notification when you've been continuously active at the desk (not idle) for a while and are behind your step pace for the time of day. Respects Do Not Disturb.",
+        "label": "Stand-up nudge",
+        "description": "Opt-in. Sends a desktop notification when you've been continuously active at the desk (not idle) for a while - independent of step count. Respects Do Not Disturb.",
         "options": ["Off", "On"],
         "defaultValue": "Off"
       },
       {
         "key": "nudgeSedentaryMinutes",
         "type": "integer",
-        "label": "Sedentary nudge threshold (minutes)",
-        "description": "How long you can be continuously active (not idle) before a nudge can fire.",
+        "label": "Stand-up nudge threshold (minutes)",
+        "description": "How long you can be continuously active (not idle) before a stand-up nudge can fire.",
         "min": 15,
         "max": 180,
         "step": 5,
         "defaultValue": 45
       },
       {
-        "key": "nudgeWakeHour",
-        "type": "integer",
-        "label": "Waking hours start (0-23)",
-        "description": "Used to pace the step-pace check - the nudge only fires if you're behind where you'd expect to be by this time of day.",
-        "min": 0,
-        "max": 23,
-        "step": 1,
-        "defaultValue": 7
+        "key": "paceNudge",
+        "type": "enum",
+        "label": "Behind-pace nudge",
+        "description": "Opt-in. Once a day, sends a notification if you're meaningfully behind a research-informed step pace for the time of day. Independent of the stand-up nudge. Respects Do Not Disturb.",
+        "options": ["Off", "On"],
+        "defaultValue": "Off"
       },
       {
-        "key": "nudgeSleepHour",
+        "key": "paceNudgeMarginPercent",
         "type": "integer",
-        "label": "Waking hours end (0-23)",
-        "min": 0,
-        "max": 23,
-        "step": 1,
-        "defaultValue": 23
+        "label": "Behind-pace margin (%)",
+        "description": "How far below expected pace (as a percent of the expected value) before the behind-pace nudge fires.",
+        "min": 5,
+        "max": 50,
+        "step": 5,
+        "defaultValue": 20
       }
     ]
   }
