@@ -177,6 +177,33 @@ Panel {
     return h > 0 ? (h + "h " + m + "m") : (m + "m")
   }
 
+  // "Overnight Signals" (issue #26) - replaces the old raw Resting HR /
+  // Sleep rows with one baseline-compared verdict line plus a small
+  // detail caption. Verdict color reuses the same amber already
+  // established for the pace-nudge "behind" state (one consistent
+  // "attention" meaning across the popup) - "good"/"typical" don't get a
+  // special color of their own, matching the project's habit of only
+  // spending color on what's actionable.
+  function overnightVerdictText() {
+    if (service.overnightVerdict === "above") return "Above your usual"
+    if (service.overnightVerdict === "below") return "Below your usual"
+    if (service.overnightVerdict === "typical") return "Typical"
+    return "—"
+  }
+  function overnightVerdictColor() {
+    if (service.overnightVerdict === "above") return root.foreground
+    if (service.overnightVerdict === "below") return root.sedentaryOverdueColor
+    return root.dim
+  }
+  function overnightDetailText() {
+    var hrText = (service.overnightRestingHr !== null && service.overnightRestingHr !== undefined)
+      ? (service.overnightRestingHr + " bpm") : "—"
+    var hrvText = (service.overnightHrv !== null && service.overnightHrv !== undefined)
+      ? (service.overnightHrv + "ms HRV") : "—"
+    var sleepDurationText = root.sleepText({ minutesAsleep: service.overnightSleepMinutes })
+    return [hrText, hrvText, sleepDurationText].join(" · ")
+  }
+
   function lastSyncedText() {
     if (!service.fetchedAtIso) return "Not synced yet"
     var synced = new Date(service.fetchedAtIso)
@@ -363,20 +390,58 @@ Panel {
 
         PanelSeparator { foreground: root.foreground }
 
-        Column {
+        OvernightRow {
           width: parent.width
-          spacing: Style.spacing.labelGap
-
-          InfoPair {
-            label: "Resting HR"
-            value: service.restingHeartRate !== null ? service.restingHeartRate + " bpm" : "—"
-          }
-          InfoPair {
-            label: "Sleep"
-            value: root.sleepText(service.sleep)
-          }
         }
       }
+    }
+  }
+
+  // "Overnight Signals" (issue #26) - label top-left / verdict top-right,
+  // echoing MetricRow's header treatment, plus a left-aligned detail
+  // caption underneath (the mockup had it right-aligned; user's final
+  // tweak moved it left). No FillBar here - this row is a comparison
+  // verdict, not a goal-progress metric.
+  component OvernightRow: Column {
+    id: overnightRoot
+    width: parent.width
+    spacing: Style.space(3)
+
+    Row {
+      id: overnightHeaderRow
+      width: parent.width
+
+      Text {
+        textFormat: Text.PlainText
+        text: "OVERNIGHT SIGNALS"
+        color: root.foreground
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        font.letterSpacing: 1.2
+        width: overnightHeaderRow.width - overnightVerdictText.implicitWidth - Style.space(8)
+        elide: Text.ElideRight
+      }
+
+      Item { width: Style.space(8); height: 1 }
+
+      Text {
+        id: overnightVerdictText
+        textFormat: Text.PlainText
+        text: root.overnightVerdictText()
+        color: root.overnightVerdictColor()
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+      }
+    }
+
+    Text {
+      textFormat: Text.PlainText
+      text: root.overnightDetailText()
+      color: root.dim
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      width: parent.width
+      elide: Text.ElideRight
     }
   }
 
@@ -431,35 +496,6 @@ Panel {
       frac: metricRoot.frac
       fillColor: metricRoot.fillColor
       trackColor: root.trackColor
-    }
-  }
-
-  component InfoPair: Row {
-    property string label: ""
-    property string value: ""
-
-    width: parent.width
-    spacing: Style.space(8)
-
-    Text {
-      textFormat: Text.PlainText
-      text: parent.label
-      color: root.foreground
-      opacity: 0.6
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
-    }
-    Item {
-      width: Math.max(0, parent.width - parent.children[0].implicitWidth - parent.children[2].implicitWidth - parent.spacing * 2)
-      height: 1
-    }
-    Text {
-      textFormat: Text.PlainText
-      text: parent.value
-      color: root.foreground
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
-      elide: Text.ElideRight
     }
   }
 

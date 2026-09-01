@@ -49,6 +49,22 @@ Item {
 
   property string _stdout: ""
   property string _stderr: ""
+  property string _baselineStdout: ""
+  property string _baselineStderr: ""
+
+  // "Overnight Signals" (issue #26) - a multi-day-baseline comparison, run
+  // on its own once-a-day cadence rather than the 5-min live poll above
+  // (a 14-day average barely moves within a day, and fetching it costs 3x
+  // the API calls of the live poll). overnightHasData/overnightHealthy
+  // follow the same latch-vs-resets-on-failure split as hasData/healthy.
+  property bool overnightHasData: false
+  property bool overnightHealthy: false
+  property string overnightComputedAtIso: ""
+  property var overnightVerdict: null
+  property var overnightRestingHr: null
+  property var overnightHrv: null
+  property var overnightSleepMinutes: null
+  property string overnightError: ""
 
   // Sedentary-nudge state. notIdleSinceMs marks the start of the current
   // continuous-active stretch; nudgedThisStretch re-arms only when idle
@@ -92,6 +108,37 @@ Item {
       return "Fit Gauge isn't set up correctly - the fetch script or its Python environment is missing."
     }
     return raw
+  }
+
+  function refreshOvernight() {
+    if (baselineProcess.running) return
+    _baselineStdout = ""
+    _baselineStderr = ""
+    baselineProcess.command = [pythonPath, helperPath, "baseline"]
+    baselineProcess.running = true
+  }
+
+  function applyOvernight(raw) {
+    var parsed
+    try {
+      parsed = JSON.parse(raw)
+    } catch (e) {
+      overnightHealthy = false
+      return
+    }
+    if (!parsed.ok) {
+      overnightError = parsed.error || "Overnight Signals fetch failed"
+      overnightHealthy = false
+      return
+    }
+    overnightHasData = true
+    overnightHealthy = true
+    overnightComputedAtIso = parsed.computedAtIso || ""
+    overnightVerdict = parsed.verdict
+    overnightRestingHr = parsed.restingHeartRate
+    overnightHrv = parsed.hrv
+    overnightSleepMinutes = parsed.sleepMinutes
+    overnightError = ""
   }
 
   function applyStatus(raw) {
@@ -250,6 +297,15 @@ Item {
   }
 
   Timer {
+    id: overnightTimer
+    interval: 24 * 3600 * 1000
+    repeat: true
+    running: true
+    triggeredOnStart: true
+    onTriggered: root.refreshOvernight()
+  }
+
+  Timer {
     id: idlePollTimer
     interval: 30000
     repeat: true
@@ -275,6 +331,23 @@ Item {
     id: paceNudgeProcess
     running: false
     command: []
+  }
+
+  Process {
+    id: baselineProcess
+    running: false
+    command: []
+    stdout: StdioCollector { id: baselineStdout; waitForEnd: true; onStreamFinished: root._baselineStdout = text }
+    stderr: StdioCollector { id: baselineStderr; waitForEnd: true; onStreamFinished: root._baselineStderr = text }
+    onExited: function(exitCode) {
+      var stdout = String(baselineStdout.text || root._baselineStdout || "")
+      var stderr = String(baselineStderr.text || root._baselineStderr || "")
+      if (stdout.length > 0) root.applyOvernight(stdout)
+      else {
+        root.overnightError = root.friendlyProcessError(stderr || ("fitbit_status.py baseline exited " + exitCode))
+        root.overnightHealthy = false
+      }
+    }
   }
 
   Process {
