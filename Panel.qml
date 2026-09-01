@@ -333,23 +333,27 @@ Panel {
             }
           }
 
-          // "AT DESK N MIN" - indented to align under the title/meta
-          // column (icon width + PanelHero's own leftMargin), matching
-          // where PanelHero's own text starts. Color mirrors the 4th ring
-          // exactly, so there is only one color-to-meaning mapping to
-          // learn, not two.
+          // "At desk N min" (issue #28) - indented to align under the
+          // title/meta column (icon width + PanelHero's own leftMargin),
+          // matching where PanelHero's own text starts. Moved to the
+          // popup's "quiet" tier (plain sentence-case, not bold, no
+          // letterSpacing/uppercase) - same treatment as the Overnight
+          // Signals detail caption and the #14 error line - since the 4th
+          // ring already carries this state ambiently and the old loud
+          // (bold/uppercase/letterSpaced) styling competed with SYNCED for
+          // attention. Color still mirrors the 4th ring exactly, so the
+          // color-to-meaning mapping is unchanged - only the type weight
+          // softened.
           Text {
             textFormat: Text.PlainText
             visible: root.sedentaryActive
             anchors.left: parent.left
             anchors.leftMargin: root.heroIconSize + Style.space(14)
             width: parent.width - anchors.leftMargin
-            text: ("At desk " + root.sedentaryMinutes + " min").toUpperCase()
+            text: "At desk " + root.sedentaryMinutes + " min"
             color: root.sedentaryRingColor
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
-            font.bold: true
-            font.letterSpacing: 1.2
             elide: Text.ElideRight
           }
 
