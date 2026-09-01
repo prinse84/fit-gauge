@@ -372,18 +372,36 @@ Panel {
 
         Column {
           width: parent.width
-          spacing: Style.space(14)
+          spacing: Style.space(8)
 
-          Repeater {
-            model: root.selectedMetrics
-            MetricRow {
-              required property var modelData
-              required property int index
-              width: parent.width
-              label: modelData.label
-              value: modelData.valueText
-              frac: root.fraction(modelData.value, modelData.goal)
-              fillColor: root.effectiveRingColors[index]
+          // "TODAY" section label (issue #27) - mirrors "OVERNIGHT SIGNALS"
+          // below (caption, uppercase, letterSpacing, not bold) so the
+          // popup reads as two parallel labeled sections instead of one
+          // labeled and one not.
+          Text {
+            textFormat: Text.PlainText
+            text: "TODAY"
+            color: root.foreground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            font.letterSpacing: 1.2
+          }
+
+          Column {
+            width: parent.width
+            spacing: Style.space(14)
+
+            Repeater {
+              model: root.selectedMetrics
+              MetricRow {
+                required property var modelData
+                required property int index
+                width: parent.width
+                label: modelData.label
+                value: modelData.valueText
+                frac: root.fraction(modelData.value, modelData.goal)
+                fillColor: root.effectiveRingColors[index]
+              }
             }
           }
         }
