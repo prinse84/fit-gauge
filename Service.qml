@@ -16,6 +16,13 @@ Item {
   readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 300, 60, 3600)
   readonly property bool busy: fetchProcess.running
 
+  // Sedentary nudge (issue #23). Off by default - see nudgeEnabled.
+  readonly property bool nudgeEnabled: setting("sedentaryNudge", "Off") === "On"
+  readonly property int nudgeSedentaryMinutes: intSetting("nudgeSedentaryMinutes", 45, 15, 180)
+  readonly property int nudgeWakeHour: intSetting("nudgeWakeHour", 7, 0, 23)
+  readonly property int nudgeSleepHour: intSetting("nudgeSleepHour", 23, 0, 23)
+  readonly property int stepGoal: intSetting("stepGoal", 11000, 1000, 50000)
+
   // hasData latches true forever once any fetch has ever succeeded - it
   // gates whether there's anything to render at all (first-load state).
   // healthy reflects only the MOST RECENT poll and resets on every
@@ -38,6 +45,14 @@ Item {
 
   property string _stdout: ""
   property string _stderr: ""
+
+  // Sedentary-nudge state. notIdleSinceMs marks the start of the current
+  // continuous-active stretch; nudgedThisStretch re-arms only when idle
+  // flips true again (a real break), never on a flat cooldown.
+  property bool idleKnown: false
+  property bool idleNow: true
+  property double notIdleSinceMs: 0
+  property bool nudgedThisStretch: false
 
   function setting(name, fallback) {
     var value = settings ? settings[name] : undefined
@@ -102,6 +117,61 @@ Item {
     lastError = ""
   }
 
+  // Expected steps by now, linearly paced across the configured waking
+  // window - avoids nagging at 9am for being behind the full-day goal.
+  function expectedSteps() {
+    var now = new Date()
+    var hour = now.getHours() + now.getMinutes() / 60
+    var wake = root.nudgeWakeHour
+    var sleepHour = root.nudgeSleepHour
+    if (sleepHour <= wake) return root.stepGoal
+    var frac = (hour - wake) / (sleepHour - wake)
+    if (frac < 0) frac = 0
+    if (frac > 1) frac = 1
+    return Math.round(root.stepGoal * frac)
+  }
+
+  function behindPace() {
+    if (root.steps === null || root.steps === undefined) return false
+    return root.steps < root.expectedSteps()
+  }
+
+  function applyIdleStatus(raw) {
+    var parsed
+    try {
+      parsed = JSON.parse(raw)
+    } catch (e) {
+      return
+    }
+    var idle = !!parsed.idle
+    if (!root.idleKnown) {
+      root.idleKnown = true
+      if (!idle) root.notIdleSinceMs = Date.now()
+    } else if (idle !== root.idleNow) {
+      if (idle) root.nudgedThisStretch = false
+      else root.notIdleSinceMs = Date.now()
+    }
+    root.idleNow = idle
+    root.maybeNudge()
+  }
+
+  function maybeNudge() {
+    if (!root.nudgeEnabled || root.idleNow || root.nudgedThisStretch) return
+    var minutesActive = (Date.now() - root.notIdleSinceMs) / 60000
+    if (minutesActive < root.nudgeSedentaryMinutes) return
+    if (!root.behindPace()) return
+    root.nudgedThisStretch = true
+    root.sendNudge()
+  }
+
+  function sendNudge() {
+    if (nudgeProcess.running) return
+    var expected = root.expectedSteps()
+    var body = "You've been at the desk a while - " + (root.steps || 0) + " steps so far, pace says ~" + expected + " by now. Stand up?"
+    nudgeProcess.command = ["notify-send", "-u", "normal", "-a", "Fit Gauge", "Time to move", body]
+    nudgeProcess.running = true
+  }
+
   Timer {
     id: refreshTimer
     interval: root.refreshIntervalSec * 1000
@@ -109,6 +179,28 @@ Item {
     running: true
     triggeredOnStart: true
     onTriggered: root.refresh()
+  }
+
+  Timer {
+    id: idlePollTimer
+    interval: 30000
+    repeat: true
+    running: root.nudgeEnabled
+    triggeredOnStart: true
+    onTriggered: if (!idleProcess.running) idleProcess.running = true
+  }
+
+  Process {
+    id: idleProcess
+    running: false
+    command: ["omarchy-shell", "idle", "status"]
+    stdout: StdioCollector { id: idleStdout; waitForEnd: true; onStreamFinished: root.applyIdleStatus(text) }
+  }
+
+  Process {
+    id: nudgeProcess
+    running: false
+    command: []
   }
 
   Process {

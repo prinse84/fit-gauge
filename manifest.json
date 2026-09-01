@@ -22,7 +22,11 @@
       "floorsGoal": 11,
       "ring1Metric": "Steps",
       "ring2Metric": "Active Zone Minutes",
-      "ring3Metric": "Calories Burned"
+      "ring3Metric": "Calories Burned",
+      "sedentaryNudge": "Off",
+      "nudgeSedentaryMinutes": 45,
+      "nudgeWakeHour": 7,
+      "nudgeSleepHour": 23
     },
     "schema": [
       {
@@ -101,6 +105,43 @@
         "label": "Ring 3 metric (inner)",
         "options": ["Steps", "Active Zone Minutes", "Calories Burned", "Distance", "Floors"],
         "defaultValue": "Calories Burned"
+      },
+      {
+        "key": "sedentaryNudge",
+        "type": "enum",
+        "label": "Sedentary nudge",
+        "description": "Opt-in. Sends a desktop notification when you've been continuously active at the desk (not idle) for a while and are behind your step pace for the time of day. Respects Do Not Disturb.",
+        "options": ["Off", "On"],
+        "defaultValue": "Off"
+      },
+      {
+        "key": "nudgeSedentaryMinutes",
+        "type": "integer",
+        "label": "Sedentary nudge threshold (minutes)",
+        "description": "How long you can be continuously active (not idle) before a nudge can fire.",
+        "min": 15,
+        "max": 180,
+        "step": 5,
+        "defaultValue": 45
+      },
+      {
+        "key": "nudgeWakeHour",
+        "type": "integer",
+        "label": "Waking hours start (0-23)",
+        "description": "Used to pace the step-pace check - the nudge only fires if you're behind where you'd expect to be by this time of day.",
+        "min": 0,
+        "max": 23,
+        "step": 1,
+        "defaultValue": 7
+      },
+      {
+        "key": "nudgeSleepHour",
+        "type": "integer",
+        "label": "Waking hours end (0-23)",
+        "min": 0,
+        "max": 23,
+        "step": 1,
+        "defaultValue": 23
       }
     ]
   }
