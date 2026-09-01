@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "prinse84.fit-gauge",
   "name": "Fit Gauge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "prinse84",
   "description": "At-a-glance Fitbit stats in the Omarchy bar",
   "kinds": ["bar-widget"],

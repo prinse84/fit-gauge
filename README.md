@@ -57,9 +57,9 @@ Both nudges are desktop notifications (`notify-send`), off by default, and autom
   - [x] Bar gauge showing 3 hero metrics (steps / Active Zone Minutes / calories vs. goal)
   - [x] Popup with per-metric breakdown, resting heart rate, sleep duration, last-synced time
   - [x] Passive states: desaturate on stale data
-- [ ] **v0.2 — Desk-context nudges**
-  - [ ] Stand-up nudge: prompt to move after a long continuous sedentary stretch (built, opt-in, not yet released)
-  - [ ] Behind-pace nudge: once-a-day prompt if steps are meaningfully behind a research-informed pace for the time of day (built, opt-in, not yet released)
+- [x] **v0.2 — Desk-context nudges**
+  - [x] Stand-up nudge: prompt to move after a long continuous sedentary stretch (opt-in)
+  - [x] Behind-pace nudge: once-a-day prompt if steps are meaningfully behind a research-informed pace for the time of day (opt-in)
 - [ ] **v1.0 — More opt-in notifications**
   - [ ] Sync-lag and goal-completion notifications
 - [ ] **v2.0+ — Nerd-tier (opt-in / drill-down only, never default-visible)**
