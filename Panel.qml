@@ -197,6 +197,27 @@ Panel {
     settings: root.settings
   }
 
+  // Own IpcHandler at the same target as the base Panel type's internal one
+  // (same pattern as the first-party Dropbox plugin) - re-declares
+  // open/close/show/hide/toggle to fully replace it, and adds refresh().
+  // CLI-only, deliberately (issue #15): forcing our own poll sooner doesn't
+  // fix Fitbit's device-to-cloud sync lag, so a popup refresh button isn't
+  // worth the UI surface - but a scriptable/manual escape hatch for
+  // confirming a fix worked (or just not waiting up to refreshIntervalSec)
+  // is worth having.
+  IpcHandler {
+    target: root.ipcTarget
+    function open(): void { root.open() }
+    function close(): void { root.close() }
+    function show(): void { root.open() }
+    function hide(): void { root.close() }
+    function toggle(): void { root.toggle() }
+    function refresh(): string {
+      service.refresh()
+      return "ok"
+    }
+  }
+
   // Keeps the "Synced N min ago" meta line advancing while the popup is
   // open, without needing a fresh fetch. lastSyncedText() reads Date.now(),
   // which isn't itself a QML property the binding can depend on, so
