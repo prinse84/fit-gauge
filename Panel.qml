@@ -49,6 +49,52 @@ Panel {
   }
   readonly property var effectiveRingColors: service.healthy ? ringColors : ringColors.map(desaturate)
 
+  // Sedentary-nudge ring (issue #25) - a 4th, outermost ring on the popup's
+  // hero icon only (never the bar icon). Colors are theme-derived via the
+  // same hueRotate() used for the 3 metric rings, at rotations well outside
+  // the +-35 degrees they already use, so it reads as a different category
+  // of information rather than a 4th metric. Not gated on service.healthy -
+  // this is about the idle service, not Fitbit data freshness.
+  readonly property color sedentaryClimbingColor: hueRotate(Color.accent, 150)
+  readonly property color sedentaryOverdueColor: hueRotate(Color.accent, -150)
+  readonly property bool sedentaryActive: service.nudgeEnabled && !service.idleNow
+  // heroMetaTick (declared below) re-fires this every 15s while the popup
+  // is open, the same trick root.heroMeta already uses to keep advancing
+  // without a fresh Fitbit fetch - notIdleSinceMs itself only changes on
+  // an idle/active transition, not every second.
+  readonly property real sedentaryFraction: {
+    heroMetaTick.tick
+    return service.sedentaryFraction()
+  }
+  readonly property int sedentaryMinutes: {
+    heroMetaTick.tick
+    return Math.round(service.sedentaryElapsedMinutes())
+  }
+  readonly property color sedentaryRingColor: sedentaryFraction >= 1 ? sedentaryOverdueColor : sedentaryClimbingColor
+
+  // Grows the hero icon (and, via radiusRatios, all 4 ring radii together)
+  // by a fixed factor only while the 4th ring is actually shown - the 3
+  // existing rings stay pixel-identical to today otherwise. See TriRingGauge
+  // for why radiusRatios must change in lockstep with the size increase.
+  readonly property real heroIconGrowth: 1.3
+  readonly property real heroIconSize: sedentaryActive ? Style.font.display * heroIconGrowth : Style.font.display
+  readonly property var heroRadiusRatios: sedentaryActive
+    ? [0.46, 0.46 / heroIconGrowth, 0.32 / heroIconGrowth, 0.18 / heroIconGrowth]
+    : [0.46, 0.32, 0.18]
+  readonly property var heroRings: sedentaryActive
+    ? [{ frac: sedentaryFraction, color: sedentaryRingColor }].concat(barRings)
+    : barRings
+
+  // Pace-nudge pill (issue #25) - independent of the sedentary ring above.
+  readonly property bool paceBadgeActive: service.paceNudgeEnabled && service.behindByMargin()
+
+  // Extra popup width reserved only when the bigger icon and/or the pill
+  // actually need it - live-verified via screenshot that without this,
+  // "SYNCED JUST NOW" truncates to "SYNCED JUST ..." when both are active
+  // at once (the label column loses room to both the icon growth and the
+  // pill's own reserved trailing space simultaneously).
+  readonly property int contentWidthBoost: (sedentaryActive ? 30 : 0) + (paceBadgeActive ? 40 : 0)
+
   // Denominators the Google Health API doesn't provide (no goals endpoint
   // exists) - see manifest.json's schema for where these come from and the
   // fit-gauge project notes for how the defaults were picked (Fitbit's own
@@ -191,7 +237,7 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(260))
+    contentWidth: panel.fittedContentWidth(Style.space(260) + root.contentWidthBoost)
     contentHeight: panel.fittedContentHeight(column.implicitHeight, Style.space(420))
 
     PanelKeyCatcher {
@@ -204,33 +250,74 @@ Panel {
         width: parent.width
         spacing: Style.space(14)
 
-        PanelHero {
+        // Hero block: title/sync line (PanelHero) plus up to 2 conditional
+        // status lines (sedentary, error), tightly spaced so they read as
+        // one cohesive block instead of separate floating messages. This
+        // whole block keeps the outer Column's normal 14px gap before the
+        // separator below - only the spacing WITHIN it is tightened.
+        Column {
+          id: heroBlock
           width: parent.width
-          title: "Fit Gauge"
-          meta: root.heroMeta
-          foreground: root.foreground
-          fontFamily: root.fontFamily
-          iconComponent: Component {
-            TriRingGauge {
-              rings: root.barRings
-              dataOk: service.hasData
-              trackColor: root.trackColor
-              active: root.opened
-              width: Style.font.display
-              height: Style.font.display
+          spacing: Style.space(3)
+
+          PanelHero {
+            width: parent.width
+            title: "Fit Gauge"
+            meta: root.heroMeta
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            iconComponent: Component {
+              TriRingGauge {
+                rings: root.heroRings
+                radiusRatios: root.heroRadiusRatios
+                dataOk: service.hasData
+                trackColor: root.trackColor
+                active: root.opened
+                width: root.heroIconSize
+                height: root.heroIconSize
+              }
+            }
+            trailingControl: Component {
+              PacePill {
+                visible: root.paceBadgeActive
+                fontFamily: root.fontFamily
+              }
             }
           }
-        }
 
-        Text {
-          textFormat: Text.PlainText
-          visible: !service.healthy
-          width: parent.width
-          text: service.lastError !== "" ? service.lastError : "Last sync failed"
-          color: root.dim
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
-          wrapMode: Text.WordWrap
+          // "AT DESK N MIN" - indented to align under the title/meta
+          // column (icon width + PanelHero's own leftMargin), matching
+          // where PanelHero's own text starts. Color mirrors the 4th ring
+          // exactly, so there is only one color-to-meaning mapping to
+          // learn, not two.
+          Text {
+            textFormat: Text.PlainText
+            visible: root.sedentaryActive
+            anchors.left: parent.left
+            anchors.leftMargin: root.heroIconSize + Style.space(14)
+            width: parent.width - anchors.leftMargin
+            text: ("At desk " + root.sedentaryMinutes + " min").toUpperCase()
+            color: root.sedentaryRingColor
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            font.letterSpacing: 1.2
+            elide: Text.ElideRight
+          }
+
+          // Existing friendly-error line (#14) - deliberately NOT indented
+          // and NOT styled like the caption/bold/uppercase lines above, so
+          // up to 3 stacked lines don't visually blur together.
+          Text {
+            textFormat: Text.PlainText
+            visible: !service.healthy
+            width: parent.width
+            text: service.lastError !== "" ? service.lastError : "Last sync failed"
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
+          }
         }
 
         PanelSeparator { foreground: root.foreground }
@@ -352,6 +439,69 @@ Panel {
       font.family: root.fontFamily
       font.pixelSize: Style.font.bodySmall
       elide: Text.ElideRight
+    }
+  }
+
+  // Pace-nudge pill (issue #25), used via PanelHero's trailingControl slot.
+  // Reuses sedentaryOverdueColor as one shared "attention" tone across both
+  // new UI elements instead of inventing a second, similar-but-different
+  // amber.
+  component PacePill: Item {
+    id: pill
+    property string fontFamily: Style.font.family
+    readonly property color tint: root.sedentaryOverdueColor
+
+    implicitWidth: row.implicitWidth + Style.space(16)
+    implicitHeight: row.implicitHeight + Style.space(6)
+
+    Rectangle {
+      anchors.fill: parent
+      radius: height / 2
+      color: Qt.rgba(pill.tint.r, pill.tint.g, pill.tint.b, 0.14)
+      border.color: Qt.rgba(pill.tint.r, pill.tint.g, pill.tint.b, 0.5)
+      border.width: 1
+    }
+
+    Row {
+      id: row
+      anchors.centerIn: parent
+      spacing: Style.space(5)
+
+      Canvas {
+        id: trendIcon
+        width: Style.font.caption
+        height: Style.font.caption
+        anchors.verticalCenter: parent.verticalCenter
+        onPaint: {
+          var ctx = getContext("2d")
+          ctx.reset()
+          ctx.strokeStyle = pill.tint
+          ctx.lineWidth = Math.max(1, width * 0.14)
+          ctx.lineCap = "round"
+          ctx.lineJoin = "round"
+          ctx.beginPath()
+          ctx.moveTo(width * 0.05, height * 0.55)
+          ctx.lineTo(width * 0.35, height * 0.55)
+          ctx.lineTo(width * 0.5, height * 0.15)
+          ctx.lineTo(width * 0.68, height * 0.85)
+          ctx.lineTo(width * 0.95, height * 0.55)
+          ctx.stroke()
+        }
+        function repaint() { requestPaint() }
+        onWidthChanged: repaint()
+        onHeightChanged: repaint()
+      }
+
+      Text {
+        textFormat: Text.PlainText
+        text: "Behind"
+        anchors.verticalCenter: parent.verticalCenter
+        color: pill.tint
+        font.family: pill.fontFamily
+        font.pixelSize: Style.font.caption
+        font.bold: true
+        font.letterSpacing: 1.2
+      }
     }
   }
 }

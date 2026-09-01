@@ -3,14 +3,15 @@ import QtQuick
 // The concentric-ring glyph, fill fraction only, no numbers - shared
 // between the bar icon and the popup's hero icon so both are the same
 // drawing at different sizes, not two implementations that can drift
-// apart. Takes a generic list of up to 3 {frac, color} entries (outer to
+// apart. Takes a generic list of up to 4 {frac, color} entries (outer to
 // inner) rather than named per-metric properties, so which metric ends
 // up in which ring is driven by settings (see Panel.qml's metric
-// registry), not hardcoded here.
+// registry), not hardcoded here. A 4th entry (sedentary progress) is
+// optional - see radiusRatios below.
 Item {
   id: root
 
-  property var rings: []  // [{frac, color}, ...] outer to inner, max 3
+  property var rings: []  // [{frac, color}, ...] outer to inner, max 4
   property bool dataOk: true
   property color trackColor: "gray"
 
@@ -30,7 +31,10 @@ Item {
   property bool active: false
   property real revealProgress: 1
 
-  readonly property var radiusRatios: [0.46, 0.32, 0.18]
+  // Overridable so a caller can opt into a 4th outer ring (see Panel.qml's
+  // sedentary-nudge hero icon) without affecting other instances - the bar
+  // icon never overrides this, so it always keeps today's exact 3-ring look.
+  property var radiusRatios: [0.46, 0.32, 0.18]
 
   onActiveChanged: if (active) revealAnim.restart()
 

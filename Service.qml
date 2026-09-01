@@ -169,6 +169,19 @@ Item {
     return root.steps < threshold
   }
 
+  // Popup UI (issue #25) reads these to drive the hero icon's 4th ring and
+  // the "AT DESK N MIN" line - separate from the notification-firing logic
+  // above, which only cares about crossing the threshold once.
+  function sedentaryElapsedMinutes() {
+    if (root.idleNow) return 0
+    return Math.max(0, (Date.now() - root.notIdleSinceMs) / 60000)
+  }
+
+  function sedentaryFraction() {
+    if (root.nudgeSedentaryMinutes <= 0) return 0
+    return Math.min(1, root.sedentaryElapsedMinutes() / root.nudgeSedentaryMinutes)
+  }
+
   function applyIdleStatus(raw) {
     var parsed
     try {
