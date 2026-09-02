@@ -199,7 +199,7 @@ Panel {
   function overnightVerdictText() {
     if (service.overnightVerdict === "above") return "Above your usual"
     if (service.overnightVerdict === "below") return "Below your usual"
-    if (service.overnightVerdict === "typical") return "Typical for you"
+    if (service.overnightVerdict === "typical") return "Your normal"
     return "—"
   }
   function overnightVerdictColor() {
@@ -297,7 +297,7 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(260) + root.contentWidthBoost)
+    contentWidth: panel.fittedContentWidth(Style.space(280) + root.contentWidthBoost)
     contentHeight: panel.fittedContentHeight(column.implicitHeight, Style.space(420))
 
     PanelKeyCatcher {
@@ -439,7 +439,7 @@ Panel {
   component OvernightRow: Column {
     id: overnightRoot
     width: parent.width
-    spacing: Style.space(3)
+    spacing: Style.space(8)
 
     Row {
       id: overnightHeaderRow
