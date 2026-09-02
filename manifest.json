@@ -22,7 +22,7 @@
       "floorsGoal": 11,
       "ring1Metric": "Steps",
       "ring2Metric": "Active Zone Minutes",
-      "ring3Metric": "Calories Burned",
+      "ring3Metric": "Total Calories",
       "sedentaryNudge": "Off",
       "nudgeSedentaryMinutes": 45,
       "paceNudge": "Off",
@@ -89,22 +89,22 @@
         "key": "ring1Metric",
         "type": "enum",
         "label": "Ring 1 metric (outer)",
-        "options": ["Steps", "Active Zone Minutes", "Calories Burned", "Distance", "Floors"],
+        "options": ["Steps", "Active Zone Minutes", "Total Calories", "Distance", "Floors"],
         "defaultValue": "Steps"
       },
       {
         "key": "ring2Metric",
         "type": "enum",
         "label": "Ring 2 metric (middle)",
-        "options": ["Steps", "Active Zone Minutes", "Calories Burned", "Distance", "Floors"],
+        "options": ["Steps", "Active Zone Minutes", "Total Calories", "Distance", "Floors"],
         "defaultValue": "Active Zone Minutes"
       },
       {
         "key": "ring3Metric",
         "type": "enum",
         "label": "Ring 3 metric (inner)",
-        "options": ["Steps", "Active Zone Minutes", "Calories Burned", "Distance", "Floors"],
-        "defaultValue": "Calories Burned"
+        "options": ["Steps", "Active Zone Minutes", "Total Calories", "Distance", "Floors"],
+        "defaultValue": "Total Calories"
       },
       {
         "key": "sedentaryNudge",

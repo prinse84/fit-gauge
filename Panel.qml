@@ -152,6 +152,10 @@ Panel {
     if (meters === null || meters === undefined) return "—"
     return (meters / 1609.344).toFixed(1) + " mi"
   }
+  function caloriesText(value) {
+    var text = countText(value)
+    return text === "—" ? text : (text + " kcal")
+  }
 
   // The pool every ring-selection setting picks from. Labels double as the
   // lookup key (and match manifest.json's enum options verbatim) so there's
@@ -160,7 +164,7 @@ Panel {
   readonly property var metricRegistry: [
     { label: "Steps", value: service.steps, valueText: countText(service.steps), goal: stepGoal },
     { label: "Active Zone Minutes", value: service.activeZoneMinutes, valueText: countText(service.activeZoneMinutes), goal: azmGoal },
-    { label: "Calories Burned", value: service.calories, valueText: countText(service.calories), goal: calorieGoal },
+    { label: "Total Calories", value: service.calories, valueText: caloriesText(service.calories), goal: calorieGoal },
     { label: "Distance", value: service.distanceMeters, valueText: distanceText(service.distanceMeters), goal: distanceGoalMeters },
     { label: "Floors", value: service.floors, valueText: countText(service.floors), goal: floorsGoal }
   ]
@@ -174,7 +178,7 @@ Panel {
   readonly property var selectedMetrics: [
     metricByLabel(stringSetting("ring1Metric", "Steps")),
     metricByLabel(stringSetting("ring2Metric", "Active Zone Minutes")),
-    metricByLabel(stringSetting("ring3Metric", "Calories Burned"))
+    metricByLabel(stringSetting("ring3Metric", "Total Calories"))
   ]
   readonly property var barRings: [
     { frac: fraction(selectedMetrics[0].value, selectedMetrics[0].goal), color: effectiveRingColors[0] },

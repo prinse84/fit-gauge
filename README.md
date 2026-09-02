@@ -24,7 +24,7 @@ omarchy bar set prinse84.fit-gauge <key> <value>
 |---|---|---|
 | `ring1Metric` | Outer ring / first popup row | `Steps` |
 | `ring2Metric` | Middle ring / second popup row | `Active Zone Minutes` |
-| `ring3Metric` | Inner ring / third popup row | `Calories Burned` |
+| `ring3Metric` | Inner ring / third popup row | `Total Calories` |
 | `stepGoal` | Daily step goal | `11000` |
 | `azmGoal` | Daily Active Zone Minutes goal | `24` |
 | `calorieGoal` | Daily calorie goal (total burn - BMR + activity, not active-only) | `2300` |
@@ -36,7 +36,7 @@ omarchy bar set prinse84.fit-gauge <key> <value>
 | `paceNudge` | Opt-in. `On` sends at most one notification per day if you're meaningfully behind a research-informed step pace for the time of day. Independent of `sedentaryNudge`. Respects Do Not Disturb. | `Off` |
 | `paceNudgeMarginPercent` | How far below expected pace (as a percent of the expected value) before the behind-pace nudge fires | `20` |
 
-`ring1Metric`/`ring2Metric`/`ring3Metric` each accept one of: `Steps`, `Active Zone Minutes`, `Calories Burned`, `Distance`, `Floors`. Multi-word values need quoting:
+`ring1Metric`/`ring2Metric`/`ring3Metric` each accept one of: `Steps`, `Active Zone Minutes`, `Total Calories`, `Distance`, `Floors`. Multi-word values need quoting:
 
 ```
 omarchy bar set prinse84.fit-gauge ring1Metric "Active Zone Minutes"
