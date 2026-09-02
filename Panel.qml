@@ -263,14 +263,20 @@ Panel {
     }
   }
 
-  // Keeps the "Synced N min ago" meta line advancing while the popup is
-  // open, without needing a fresh fetch. lastSyncedText() reads Date.now(),
-  // which isn't itself a QML property the binding can depend on, so
-  // heroMeta reads this ticking property purely to pick up a dependency.
+  // Keeps the "Synced N min ago" meta line (and the desk-streak text/ring,
+  // which reuse the same tick) advancing while the popup is open, without
+  // needing a fresh fetch. lastSyncedText()/sedentaryElapsedMinutes() read
+  // Date.now(), which isn't itself a QML property the binding can depend
+  // on, so heroMeta/sedentaryMinutes/etc. read this ticking property
+  // purely to pick up a dependency. triggeredOnStart matters here: without
+  // it, a fresh open shows whatever value was last live-computed (stale by
+  // up to a full popup-closed duration) until the first 15s tick lands -
+  // for a quick glance-and-close, that's often never.
   Timer {
     interval: 15000
     running: root.opened
     repeat: true
+    triggeredOnStart: true
     onTriggered: heroMetaTick.tick = !heroMetaTick.tick
   }
   QtObject {
