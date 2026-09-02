@@ -199,7 +199,7 @@ Panel {
   function overnightVerdictText() {
     if (service.overnightVerdict === "above") return "Above your usual"
     if (service.overnightVerdict === "below") return "Below your usual"
-    if (service.overnightVerdict === "typical") return "Your normal"
+    if (service.overnightVerdict === "typical") return "Within your baseline"
     return "—"
   }
   function overnightVerdictColor() {
@@ -297,7 +297,7 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(280) + root.contentWidthBoost)
+    contentWidth: panel.fittedContentWidth(Style.space(300) + root.contentWidthBoost)
     contentHeight: panel.fittedContentHeight(column.implicitHeight, Style.space(420))
 
     PanelKeyCatcher {
@@ -441,22 +441,32 @@ Panel {
     width: parent.width
     spacing: Style.space(8)
 
+    // Compact "LABEL — VALUE" group (not label-left/value-right stretched
+    // across the full row) - keeps the two tightly adjacent instead of
+    // spread apart by the row's unused width.
     Row {
       id: overnightHeaderRow
       width: parent.width
+      spacing: Style.space(6)
 
       Text {
+        id: overnightLabelText
         textFormat: Text.PlainText
         text: "OVERNIGHT SIGNALS"
         color: root.foreground
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         font.letterSpacing: 1.2
-        width: overnightHeaderRow.width - overnightVerdictText.implicitWidth - Style.space(8)
-        elide: Text.ElideRight
       }
 
-      Item { width: Style.space(8); height: 1 }
+      Text {
+        id: overnightDashText
+        textFormat: Text.PlainText
+        text: "—"
+        color: root.dim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+      }
 
       Text {
         id: overnightVerdictText
@@ -466,6 +476,9 @@ Panel {
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         font.letterSpacing: 1.2
+        width: Math.max(0, overnightHeaderRow.width - overnightLabelText.implicitWidth
+          - overnightDashText.implicitWidth - overnightHeaderRow.spacing * 2)
+        elide: Text.ElideRight
       }
     }
 
