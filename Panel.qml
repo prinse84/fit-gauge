@@ -86,7 +86,19 @@ Panel {
     : barRings
 
   // Pace-nudge pill (issue #25) - independent of the sedentary ring above.
-  readonly property bool paceBadgeActive: service.paceNudgeEnabled && service.behindByMargin()
+  // behindByMargin() depends on wall-clock time (the pace curve's expected
+  // value drifts continuously through the day even with steps unchanged),
+  // which isn't a QML property - so without reading heroMetaTick.tick here
+  // too (the same trick sedentaryFraction/sedentaryMinutes/heroMeta already
+  // use), this binding would only re-evaluate when steps/settings change,
+  // and could sit stale-false long after time alone made it true (the
+  // 30s idle-poll's maybePaceNudge() call is a separate, untied evaluation
+  // that already fires the notification correctly - only this UI binding
+  // was missing the tick).
+  readonly property bool paceBadgeActive: {
+    heroMetaTick.tick
+    return service.paceNudgeEnabled && service.behindByMargin()
+  }
 
   // Extra popup width reserved only when the bigger icon and/or the pill
   // actually need it - live-verified via screenshot that without this,
