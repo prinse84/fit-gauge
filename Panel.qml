@@ -71,6 +71,12 @@ Panel {
     return Math.round(service.sedentaryElapsedMinutes())
   }
   readonly property color sedentaryRingColor: sedentaryFraction >= 1 ? sedentaryOverdueColor : sedentaryClimbingColor
+  // Pre-nudge warning (issue #32) - 3/4 of the way to the actual nudge
+  // threshold, self-scaling with nudgeSedentaryMinutes so there's no low-
+  // threshold edge case to guard against. Text-only - the ring/line color
+  // stays the same "climbing" color through this whole window; only past
+  // the real threshold does sedentaryRingColor above switch to amber.
+  readonly property bool sedentaryWarningActive: sedentaryActive && sedentaryFraction >= 0.75 && sedentaryFraction < 1
 
   // Grows the hero icon (and, via radiusRatios, all 4 ring radii together)
   // by a fixed factor only while the 4th ring is actually shown - the 3
@@ -363,6 +369,7 @@ Panel {
             anchors.leftMargin: root.heroIconSize + Style.space(14)
             width: parent.width - anchors.leftMargin
             text: "Desk streak: " + root.sedentaryMinutes + " min"
+              + (root.sedentaryWarningActive ? " — break soon?" : "")
             color: root.sedentaryRingColor
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
