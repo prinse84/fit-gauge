@@ -199,7 +199,7 @@ Panel {
   function overnightVerdictText() {
     if (service.overnightVerdict === "above") return "Above your usual"
     if (service.overnightVerdict === "below") return "Below your usual"
-    if (service.overnightVerdict === "typical") return "Typical"
+    if (service.overnightVerdict === "typical") return "Typical for you"
     return "—"
   }
   function overnightVerdictColor() {
@@ -209,10 +209,10 @@ Panel {
   }
   function overnightDetailText() {
     var hrText = (service.overnightRestingHr !== null && service.overnightRestingHr !== undefined)
-      ? (service.overnightRestingHr + " bpm") : "—"
+      ? ("RHR " + service.overnightRestingHr + " bpm") : "RHR —"
     var hrvText = (service.overnightHrv !== null && service.overnightHrv !== undefined)
-      ? (service.overnightHrv + "ms HRV") : "—"
-    var sleepDurationText = root.sleepText({ minutesAsleep: service.overnightSleepMinutes })
+      ? ("HRV " + service.overnightHrv + " ms") : "HRV —"
+    var sleepDurationText = "Sleep " + root.sleepText({ minutesAsleep: service.overnightSleepMinutes })
     return [hrText, hrvText, sleepDurationText].join(" · ")
   }
 
