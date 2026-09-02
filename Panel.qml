@@ -345,7 +345,7 @@ Panel {
             }
           }
 
-          // "At desk N min" (issue #28) - indented to align under the
+          // "Desk streak: N min" (issue #28, reworded #30) - indented to align under the
           // title/meta column (icon width + PanelHero's own leftMargin),
           // matching where PanelHero's own text starts. Moved to the
           // popup's "quiet" tier (plain sentence-case, not bold, no
@@ -362,7 +362,7 @@ Panel {
             anchors.left: parent.left
             anchors.leftMargin: root.heroIconSize + Style.space(14)
             width: parent.width - anchors.leftMargin
-            text: "At desk " + root.sedentaryMinutes + " min"
+            text: "Desk streak: " + root.sedentaryMinutes + " min"
             color: root.sedentaryRingColor
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
