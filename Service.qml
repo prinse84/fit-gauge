@@ -74,6 +74,7 @@ Item {
   property double notIdleSinceMs: 0
   property bool nudgedThisStretch: false
   property string paceNudgedDate: ""
+  property double lastIdlePollMs: 0
 
   function setting(name, fallback) {
     var value = settings ? settings[name] : undefined
@@ -229,6 +230,21 @@ Item {
     return Math.min(1, root.sedentaryElapsedMinutes() / root.nudgeSedentaryMinutes)
   }
 
+  // A poll gap far larger than idlePollTimer's interval means this whole
+  // process was frozen (system suspend / lid closed), not that the user sat
+  // still - the OS idle-notify signal can't fire while suspended, so the
+  // usual idle->active transition never happens and the streak would
+  // otherwise keep counting straight through the sleep. Treat a big gap as
+  // a real break, same as an idle transition.
+  function checkSuspendGap() {
+    var now = Date.now()
+    if (root.lastIdlePollMs > 0 && (now - root.lastIdlePollMs) > idlePollTimer.interval * 2) {
+      root.notIdleSinceMs = now
+      root.nudgedThisStretch = false
+    }
+    root.lastIdlePollMs = now
+  }
+
   function applyIdleStatus(raw) {
     var parsed
     try {
@@ -311,7 +327,10 @@ Item {
     repeat: true
     running: root.nudgeEnabled || root.paceNudgeEnabled
     triggeredOnStart: true
-    onTriggered: if (!idleProcess.running) idleProcess.running = true
+    onTriggered: {
+      root.checkSuspendGap()
+      if (!idleProcess.running) idleProcess.running = true
+    }
   }
 
   Process {
