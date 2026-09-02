@@ -461,10 +461,11 @@ Panel {
       Text {
         id: overnightVerdictText
         textFormat: Text.PlainText
-        text: root.overnightVerdictText()
+        text: root.overnightVerdictText().toUpperCase()
         color: root.overnightVerdictColor()
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
+        font.letterSpacing: 1.2
       }
     }
 
