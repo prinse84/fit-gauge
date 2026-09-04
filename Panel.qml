@@ -259,6 +259,7 @@ Panel {
     function toggle(): void { root.toggle() }
     function refresh(): string {
       service.refresh()
+      service.refreshOvernight()
       return "ok"
     }
   }

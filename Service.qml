@@ -66,6 +66,19 @@ Item {
   property var overnightSleepMinutes: null
   property string overnightError: ""
 
+  // Fixed local hour Overnight Signals becomes eligible to refresh each day
+  // - not a shell-restart-anchored timer (see overnightRefreshedDate below).
+  // Deliberately not a setting, matching the pace curve's own "opinionated,
+  // not per-user-tunable" precedent.
+  readonly property int overnightRefreshHour: 7
+  // Local yyyy-MM-dd date Overnight Signals last found a real today reading
+  // for. Empty/stale (not today) + past overnightRefreshHour is what makes
+  // maybeRefreshOvernight() try again - covers both "it's now past 7am" and
+  // "the computer just woke up and it's already past 7am" the same way,
+  // since it's a wall-clock read on every refreshTimer tick rather than a
+  // timer anchored to whenever the shell itself last started.
+  property string overnightRefreshedDate: ""
+
   // Sedentary-nudge state. notIdleSinceMs marks the start of the current
   // continuous-active stretch; nudgedThisStretch re-arms only when idle
   // flips true again (a real break), never on a flat cooldown.
@@ -119,6 +132,17 @@ Item {
     baselineProcess.running = true
   }
 
+  // Called on every refreshTimer tick (i.e. at least every refreshIntervalSec,
+  // regardless of shell uptime) rather than a dedicated once-a-day timer, so
+  // there's no anchor to "whenever the shell last started" - suspend/resume
+  // never restarts the shell, so that anchor could otherwise drift for days.
+  function maybeRefreshOvernight() {
+    var now = new Date()
+    if (now.getHours() < root.overnightRefreshHour) return
+    if (root.overnightRefreshedDate === Qt.formatDate(now, "yyyy-MM-dd")) return
+    root.refreshOvernight()
+  }
+
   function applyOvernight(raw) {
     var parsed
     try {
@@ -140,6 +164,13 @@ Item {
     overnightHrv = parsed.hrv
     overnightSleepMinutes = parsed.sleepMinutes
     overnightError = ""
+    // A null verdict means none of today's readings had posted yet (see
+    // build_baseline()'s any_signal_available) - don't latch the date in
+    // that case, so maybeRefreshOvernight() keeps retrying on later ticks
+    // today instead of waiting until tomorrow for data that's simply late.
+    if (parsed.verdict != null) {
+      overnightRefreshedDate = Qt.formatDate(new Date(), "yyyy-MM-dd")
+    }
   }
 
   function applyStatus(raw) {
@@ -309,16 +340,10 @@ Item {
     repeat: true
     running: true
     triggeredOnStart: true
-    onTriggered: root.refresh()
-  }
-
-  Timer {
-    id: overnightTimer
-    interval: 24 * 3600 * 1000
-    repeat: true
-    running: true
-    triggeredOnStart: true
-    onTriggered: root.refreshOvernight()
+    onTriggered: {
+      root.refresh()
+      root.maybeRefreshOvernight()
+    }
   }
 
   Timer {
