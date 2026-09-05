@@ -2,7 +2,7 @@
 
 Fit Gauge is a Quickshell bar widget that reads a user's own Fitbit data through the official Google Health API. It requires user-provided Google OAuth credentials and a local Python environment with the documented dependencies. OAuth credentials are stored in the local system keyring; no credentials are bundled with the plugin. Desktop movement notifications are opt-in and respect Omarchy Do Not Disturb. The plugin does not overwrite user configuration without explicit user action.
 
-An Omarchy bar plugin that shows your Fitbit stats at a glance — steps, Active Zone Minutes, and calories as a small gauge in the bar. Click it for a popup with the per-metric breakdown, an overnight recovery summary, and (opt-in) desk-context nudges.
+An Omarchy bar plugin that shows your Fitbit stats at a glance — steps, Active Zone Minutes, and calories as a small gauge in the bar. Click it for a popup with the per-metric breakdown, an overnight signals summary, and (opt-in) desk-context nudges.
 
 <img src="docs/screenshots/hero.png" alt="Fit Gauge popup open on the desktop, Retro theme, left bar" width="800">
 
@@ -116,7 +116,9 @@ Each installer registers their own Google Cloud OAuth client — there's no shar
 
 ### 2. Configure the OAuth consent screen
 
-The Google Health API's scopes are all "Restricted," which normally requires a Google security review — but that review only applies to a *published/verified* app. Skip it entirely by keeping the app in Testing mode with yourself as the only user:
+The Google Health API scopes are restricted. For personal, self-hosted use, keep the app in Testing mode and add only yourself as a test user; this avoids publishing a shared app or submitting it for Google verification.
+
+**Tradeoff:** Google expires Testing-mode authorization after seven days, including the refresh token. When Fit Gauge asks you to reconnect, rerun the authentication command in [step 6](#6-authenticate-once-by-hand).
 
 1. In the console, go to **APIs & Services → OAuth consent screen**.
 2. User type: **External**.
@@ -158,7 +160,9 @@ Still in that same directory:
 ~/.cache/fit-gauge/venv/bin/python fitbit_status.py
 ```
 
-This opens a browser for you to sign in and approve the requested scopes (steps/activity, health metrics, sleep). It should print one JSON line with your steps/AZM/calories/etc. and no `warnings`. Your token is then stored in `gnome-keyring`, not on disk.
+This opens a browser for you to sign in and approve the requested scopes (steps/activity, health metrics, sleep). It should print one JSON line with your steps/AZM/calories/etc. and no `warnings`. Your token is then stored in your system keyring (typically GNOME Keyring), not on disk.
+
+If you ever see a "reconnect needed" error (most commonly the Testing-mode expiration noted in step 2), just rerun this same command.
 
 ### 7. Enable it
 
@@ -167,6 +171,24 @@ omarchy plugin enable prinse84.fit-gauge --section right
 ```
 
 (`--section left`/`--section center` work too, if you'd rather place it elsewhere.) Then optionally tune goals/metrics/nudges via `omarchy bar set` — see [Settings](#settings) above.
+
+## Removal
+
+Remove the plugin with Omarchy's documented official removal command:
+
+```sh
+omarchy plugin remove prinse84.fit-gauge
+```
+
+That disables Fit Gauge and removes its local plugin checkout.
+
+Optional cleanup:
+
+```sh
+rm -rf ~/.cache/fit-gauge/venv
+```
+
+Fit Gauge does not delete OAuth credentials automatically. If you want to revoke local access too, remove the `fit-gauge` entries from your system keyring/password manager.
 
 ## Disclaimer
 
