@@ -1,0 +1,3 @@
+google-auth-oauthlib
+requests
+keyring

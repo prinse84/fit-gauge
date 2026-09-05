@@ -1,6 +1,22 @@
 # Fit Gauge
 
-An Omarchy bar plugin that shows your Fitbit stats at a glance — steps, Active Zone Minutes, and calories as a small gauge in the bar, with a quick popup for the rest.
+An Omarchy bar plugin that shows your Fitbit stats at a glance — steps, Active Zone Minutes, and calories as a small gauge in the bar. Click it for a popup with the per-metric breakdown, an overnight recovery summary, and (opt-in) desk-context nudges.
+
+## Screenshots
+
+**Bar icon** — three concentric fill rings, one per hero metric vs. today's goal (order/metrics configurable, see [Settings](#settings)).
+
+<img src="docs/screenshots/bar-icon.png" alt="Fit Gauge bar icon showing three fill rings" width="120">
+
+**Popup** — click the icon for today's 3 hero metrics as fill bars, plus an "Overnight Signals" line comparing resting heart rate, HRV, and sleep against your own 14-day baseline.
+
+<img src="docs/screenshots/popup.png" alt="Fit Gauge popup showing steps, Active Zone Minutes, Total Calories, and Overnight Signals" width="420">
+
+**Nudges** (opt-in, off by default) — a plain desktop notification, automatically silenced by Do Not Disturb.
+
+<img src="docs/screenshots/nudge-notification.png" alt="A Fit Gauge desk nudge notification" width="480">
+
+When data goes stale (a missed sync, a network hiccup), the rings and bars desaturate in place rather than showing an error screen.
 
 ## Why
 
@@ -10,7 +26,7 @@ What this explicitly is **not**: a Fitbit app replacement, a historical dashboar
 
 ## Status
 
-v0.1 (glance-only bar gauge + popup) is complete. v0.2 (desk-context nudges) is in progress — see the [issue tracker](https://github.com/prinse84/fit-gauge/issues) for what's left.
+v0.1 (glance-only bar gauge + popup) and v0.2 (opt-in desk-context nudges) are both complete and in daily use. See the [issue tracker](https://github.com/prinse84/fit-gauge/issues) for open polish/exploration items.
 
 ## Settings
 
@@ -68,7 +84,72 @@ Both nudges are desktop notifications (`notify-send`), off by default, and autom
 ## Requirements
 
 - [Omarchy](https://github.com/basecamp/omarchy) (Quickshell-based bar)
-- A Fitbit account synced to Google Health, and your own Google Cloud OAuth client for the Google Health API (setup instructions coming)
+- A Fitbit account synced to Google Health
+- Python 3.10+ and [`uv`](https://docs.astral.sh/uv/) (or plain `venv`/`pip`)
+- Your own Google Cloud project with the Google Health API enabled and an OAuth 2.0 client (free — see Setup below)
+
+## Setup
+
+Each installer registers their own Google Cloud OAuth client — there's no shared/hosted client, so this step can't be skipped. It's a one-time setup, about 10 minutes.
+
+### 1. Create a Google Cloud project and enable the API
+
+1. Go to the [Google Cloud console](https://console.cloud.google.com/) and create a new project (or pick an existing one).
+2. Enable the Google Health API directly at [console.developers.google.com/apis/library/health.googleapis.com](https://console.developers.google.com/apis/library/health.googleapis.com) — confirm the right project is selected, then click **Enable**.
+
+### 2. Configure the OAuth consent screen
+
+The Google Health API's scopes are all "Restricted," which normally requires a Google security review — but that review only applies to a *published/verified* app. Skip it entirely by keeping the app in Testing mode with yourself as the only user:
+
+1. In the console, go to **APIs & Services → OAuth consent screen**.
+2. User type: **External**.
+3. Fill in the required app name/support email fields, then publish nothing — leave **Publishing status: Testing**.
+4. Under **Test users**, add the Google account you'll actually authenticate with (the one linked to your Fitbit device via Google Health).
+
+### 3. Create an OAuth 2.0 client
+
+1. Go to [console.developers.google.com/apis/credentials](https://console.developers.google.com/apis/credentials) → **Create Credentials → OAuth client ID**.
+2. Application type: **Desktop app** (not Web application — this project runs the installed-app/PKCE flow, not a web redirect).
+3. Create it, then download the client JSON.
+4. Save it as `~/.config/fit-gauge/client_secret.json`.
+
+### 4. Install the plugin (without enabling it yet)
+
+```sh
+omarchy plugin add https://github.com/prinse84/fit-gauge
+```
+
+This clones it to `~/.config/omarchy/plugins/prinse84.fit-gauge` but leaves it disabled — deliberately, so the next two steps happen with a human at the keyboard rather than the bar widget's background process attempting them silently on its own first run.
+
+### 5. Install Python dependencies
+
+`Service.qml` expects the Python interpreter at this exact path, so create the venv there (not elsewhere, and not inside the plugin folder — a venv's symlinks fail Omarchy's plugin validator if nested inside a plugin directory):
+
+```sh
+cd ~/.config/omarchy/plugins/prinse84.fit-gauge
+uv venv ~/.cache/fit-gauge/venv
+uv pip install --python ~/.cache/fit-gauge/venv/bin/python -r requirements.txt
+```
+
+(No `uv`? `python3 -m venv ~/.cache/fit-gauge/venv && ~/.cache/fit-gauge/venv/bin/pip install -r requirements.txt` works the same.)
+
+### 6. Authenticate once, by hand
+
+Still in that same directory:
+
+```sh
+~/.cache/fit-gauge/venv/bin/python fitbit_status.py
+```
+
+This opens a browser for you to sign in and approve the requested scopes (steps/activity, health metrics, sleep). It should print one JSON line with your steps/AZM/calories/etc. and no `warnings`. Your token is then stored in `gnome-keyring`, not on disk.
+
+### 7. Enable it
+
+```sh
+omarchy plugin enable prinse84.fit-gauge --section right
+```
+
+(`--section left`/`--section center` work too, if you'd rather place it elsewhere.) Then optionally tune goals/metrics/nudges via `omarchy bar set` — see [Settings](#settings) above.
 
 ## Disclaimer
 
