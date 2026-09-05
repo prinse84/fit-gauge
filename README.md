@@ -1,6 +1,10 @@
 # Fit Gauge
 
+Fit Gauge is a Quickshell bar widget that reads a user's own Fitbit data through the official Google Health API. It requires user-provided Google OAuth credentials and a local Python environment with the documented dependencies. OAuth credentials are stored in the local system keyring; no credentials are bundled with the plugin. Desktop movement notifications are opt-in and respect Omarchy Do Not Disturb. The plugin does not overwrite user configuration without explicit user action.
+
 An Omarchy bar plugin that shows your Fitbit stats at a glance — steps, Active Zone Minutes, and calories as a small gauge in the bar. Click it for a popup with the per-metric breakdown, an overnight recovery summary, and (opt-in) desk-context nudges.
+
+<img src="docs/screenshots/hero.png" alt="Fit Gauge popup open on the desktop, Retro theme, left bar" width="800">
 
 ## Screenshots
 
@@ -17,6 +21,19 @@ An Omarchy bar plugin that shows your Fitbit stats at a glance — steps, Active
 <img src="docs/screenshots/nudge-notification.png" alt="A Fit Gauge desk nudge notification" width="480">
 
 When data goes stale (a missed sync, a network hiccup), the rings and bars desaturate in place rather than showing an error screen.
+
+### Themes
+
+Colors are derived from your active Omarchy theme's accent (hue-rotated per ring), not hardcoded — and the popup follows your bar's placement, left or top:
+
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/theme-osaka-jade.png" width="160"><br><sub>Osaka Jade</sub></td>
+<td align="center"><img src="docs/screenshots/theme-retro-top.png" width="160"><br><sub>Retro (top bar)</sub></td>
+<td align="center"><img src="docs/screenshots/theme-retro-left.png" width="160"><br><sub>Retro (left bar)</sub></td>
+<td align="center"><img src="docs/screenshots/theme-tokyo.png" width="160"><br><sub>Tokyo</sub></td>
+</tr>
+</table>
 
 ## Why
 
