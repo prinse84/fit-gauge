@@ -15,7 +15,7 @@ from pathlib import Path
 
 import keyring
 import requests
-from google.auth.exceptions import GoogleAuthError
+from google.auth.exceptions import GoogleAuthError, RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -100,9 +100,20 @@ def get_credentials() -> Credentials:
         parsed = json.loads(stored)
         creds = Credentials.from_authorized_user_info(parsed, parsed.get("scopes") or SCOPES)
         if creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            save_credentials(creds)
-        return creds
+            try:
+                creds.refresh(Request())
+                save_credentials(creds)
+                return creds
+            except RefreshError:
+                # Refresh token itself is expired/revoked, not just the
+                # access token - fall through to a fresh interactive flow
+                # instead of dead-ending here forever (this used to
+                # propagate straight to __main__'s GoogleAuthError handler,
+                # which just reprinted the same "run this again" message
+                # with no code path that ever obtained a new token).
+                keyring.delete_password(KEYRING_SERVICE, KEYRING_CREDENTIALS_ACCOUNT)
+        else:
+            return creds
 
     flow = InstalledAppFlow.from_client_config(load_client_config(), SCOPES)
     creds = flow.run_local_server(port=0)
@@ -497,9 +508,15 @@ if __name__ == "__main__":
     try:
         print(json.dumps(build()))
     except GoogleAuthError:
+        # Match Service.qml's venv convention so the printed command is one
+        # the user can paste as-is, rather than a bare "python
+        # fitbit_status.py" that only works if their shell's python happens
+        # to resolve to the plugin's venv.
+        venv_python = Path.home() / ".cache" / "fit-gauge" / "venv" / "bin" / "python"
+        script_path = Path(__file__).resolve()
         print(json.dumps({
             "ok": False,
-            "error": "Reconnect needed - run 'python fitbit_status.py' in a terminal to re-authenticate.",
+            "error": f"Reconnect needed - run '{venv_python} {script_path}' in a terminal to re-authenticate.",
         }))
         sys.exit(1)
     except requests.exceptions.RequestException:
